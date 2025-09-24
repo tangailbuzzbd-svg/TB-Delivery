@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delivery Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .toast-enter { opacity: 0; transform: translateY(20px) scale(0.95); }
+        .toast-enter-active { opacity: 1; transform: translateY(0) scale(1); transition: opacity 300ms, transform 300ms; }
+        .toast-exit-active { opacity: 0; transform: translateY(20px) scale(0.95); transition: opacity 300ms, transform 300ms; }
+        
+        /* Modal styles */
+        .modal-backdrop {
+            background-color: rgba(0,0,0,0.5);
+            transition: opacity 0.3s ease-in-out;
+        }
+        .modal-content {
+            transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+        }
+        .modal-hidden {
+            pointer-events: none;
+        }
+        .modal-hidden .modal-backdrop {
+            opacity: 0;
+        }
+        .modal-hidden .modal-content {
+            opacity: 0;
+            transform: scale(0.95) translateY(20px);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900">
+
+    <!-- Loading Spinner -->
+    <div id="loading-spinner" class="flex items-center justify-center min-h-screen">
+        <div class="w-16 h-16 border-4 border-t-4 border-gray-200 border-t-blue-600 rounded-full animate-spin"></div>
+    </div>
+    
+    <!-- Login Screen -->
+    <div id="login-screen" class="hidden flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
+        <div class="w-full max-w-sm p-8 space-y-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg">
+            <div class="text-center">
+                <h2 class="text-3xl font-bold text-gray-800 dark:text-white">Delivery Login</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Access your assigned orders</p>
+            </div>
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label for="email" class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">Email Address</label>
+                    <input type="email" id="email" name="email" required class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200" placeholder="you@example.com">
+                </div>
+                <div>
+                    <label for="password" class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">Password</label>
+                    <input type="password" id="password" name="password" required class="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200" placeholder="••••••••">
+                </div>
+                <p id="login-error" class="text-sm text-red-500 text-center min-h-[1.25rem]"></p>
+                <button type="submit" class="w-full py-3 font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 focus:ring-blue-500 transition-colors duration-200 transform active:scale-95">LOGIN</button>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- Main Application -->
+    <div id="app-container" class="hidden">
+        <header class="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-10 border-b border-gray-200 dark:border-gray-700">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">Delivery Dashboard</h1>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Welcome, <span id="delivery-man-name" class="font-semibold"></span>!</p>
+                </div>
+                <button id="logout-button" class="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors duration-200 transform active:scale-95">
+                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Logout</span>
+                </button>
+            </div>
+        </header>
+
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div id="dashboard-content">
+                 <div class="mb-6 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm text-center">
+                    <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Total COD Collection (All Time)</p>
+                    <p id="total-collection-info" class="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">৳0</p>
+                 </div>
+
+                <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Your Assigned Orders</h2>
+                <div id="order-list" class="space-y-4">
+                    <!-- Orders will be dynamically inserted here -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- New Order Modal -->
+    <div id="new-order-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-hidden">
+        <div class="modal-backdrop absolute inset-0"></div>
+        <div class="modal-content relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md m-4 p-6">
+            <div class="text-center">
+                <i data-lucide="bell-ring" class="w-12 h-12 mx-auto text-blue-500"></i>
+                <h3 class="text-2xl font-bold text-gray-800 dark:text-white mt-4">New Order Assigned!</h3>
+                <div id="new-order-details" class="text-left mt-4 text-sm text-gray-600 dark:text-gray-300 space-y-2">
+                    <!-- New order details will be injected here -->
+                </div>
+            </div>
+            <div class="mt-6">
+                <button id="accept-order-btn" class="w-full px-4 py-3 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 transition">Accept Order</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg transition-all duration-300 toast-enter z-50">
+        <p id="toast-message"></p>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, query, where, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Global Config & Initialization ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBQH3wiKS5_5gGg309REabDmJSk1VLIbtw",
+            authDomain: "tangail-buzz-project.firebaseapp.com",
+            projectId: "tangail-buzz-project",
+            storageBucket: "tangail-buzz-project.firebasestorage.app",
+            messagingSenderId: "1080138191394",
+            appId: "1:1080138191394:web:0e96b05009820b5dc5b07b"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        // --- UI Elements & State ---
+        const ui = {
+            loadingSpinner: document.getElementById('loading-spinner'),
+            loginScreen: document.getElementById('login-screen'),
+            loginForm: document.getElementById('login-form'),
+            loginError: document.getElementById('login-error'),
+            appContainer: document.getElementById('app-container'),
+            deliveryManName: document.getElementById('delivery-man-name'),
+            orderList: document.getElementById('order-list'),
+            logoutButton: document.getElementById('logout-button'),
+            totalCollection: document.getElementById('total-collection-info'),
+            newOrderModal: document.getElementById('new-order-modal'),
+            newOrderDetails: document.getElementById('new-order-details'),
+            acceptOrderBtn: document.getElementById('accept-order-btn'),
+        };
+
+        let state = {
+            unsubscribeOrders: null,
+            liveTimerInterval: null,
+            seenOrderIds: new Set(),
+            isFirstLoad: true,
+            newOrderQueue: [],
+            audioContext: null,
+            allOrders: [], // Holds the current list of all orders from Firestore
+        };
+        
+        // --- Local Storage Helpers ---
+        const getFromStorage = (key, defaultValue = {}) => JSON.parse(localStorage.getItem(key)) || defaultValue;
+        const saveToStorage = (key, value) => localStorage.setItem(key, JSON.stringify(value));
+        
+        // --- Authentication ---
+        onAuthStateChanged(auth, async (user) => {
+            ui.loadingSpinner.classList.add('hidden');
+            if (user) {
+                const deliveryManRef = doc(db, 'deliveryMen', user.uid);
+                const deliveryManDoc = await getDoc(deliveryManRef);
+                if (deliveryManDoc.exists()) {
+                    ui.loginScreen.classList.add('hidden');
+                    ui.appContainer.classList.remove('hidden');
+                    initializeDashboard(user, deliveryManDoc.data());
+                } else {
+                    await signOut(auth);
+                    ui.loginError.textContent = "You are not a registered delivery person.";
+                    ui.appContainer.classList.add('hidden');
+                    ui.loginScreen.classList.remove('hidden');
+                }
+            } else {
+                if (state.unsubscribeOrders) state.unsubscribeOrders();
+                if (state.liveTimerInterval) clearInterval(state.liveTimerInterval);
+                ui.appContainer.classList.add('hidden');
+                ui.loginScreen.classList.remove('hidden');
+            }
+        });
+
+        ui.loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            ui.loginError.textContent = '';
+            try {
+                await signInWithEmailAndPassword(auth, e.target.email.value, e.target.password.value);
+            } catch (error) {
+                ui.loginError.textContent = "Incorrect email or password.";
+            }
+        });
+
+        ui.logoutButton.addEventListener('click', () => signOut(auth));
+
+        function initializeDashboard(user, deliveryManData) {
+            ui.deliveryManName.textContent = deliveryManData.name || "Delivery Staff";
+            listenForAssignedOrders(user.uid);
+            lucide.createIcons();
+        }
+
+        // --- Real-time Order Listening ---
+        function listenForAssignedOrders(uid) {
+            const ordersQuery = query(collection(db, 'orders'), where("assignedDeliveryManId", "==", uid));
+            if (state.unsubscribeOrders) state.unsubscribeOrders();
+
+            state.unsubscribeOrders = onSnapshot(ordersQuery, (snapshot) => {
+                const newOrders = [];
+                state.allOrders = snapshot.docs
+                    .map(doc => ({ id: doc.id, ...doc.data() }))
+                    .filter(order => order.status !== 'cancelled' && order.status !== 'rejected');
+                
+                if (state.isFirstLoad) {
+                    state.allOrders.forEach(order => state.seenOrderIds.add(order.id));
+                    state.isFirstLoad = false;
+                } else {
+                    state.allOrders.forEach(order => {
+                        if (!state.seenOrderIds.has(order.id)) {
+                            newOrders.push(order);
+                            state.seenOrderIds.add(order.id);
+                        }
+                    });
+                }
+                
+                renderOrders(state.allOrders);
+                calculateTotalCollection(state.allOrders);
+
+                if (newOrders.length > 0) {
+                    processNewOrderQueue(newOrders);
+                }
+            }, (error) => {
+                console.error("Firestore Snapshot Error:", error);
+                showToast("Cannot load orders. Check Firestore rules.", "error");
+            });
+        }
+        
+        // --- UI Rendering ---
+        function renderOrders(orders) {
+            ui.orderList.innerHTML = '';
+            if (orders.length === 0) {
+                ui.orderList.innerHTML = '<div class="text-center p-8 bg-white dark:bg-gray-800 rounded-lg shadow-md"><p class="text-gray-500 dark:text-gray-400">No orders assigned.</p></div>';
+                return;
+            }
+
+            const deliveryTimestamps = getFromStorage('deliveryTimestamps');
+            const deliveredOrders = orders
+                .filter(o => o.status === 'delivered')
+                .sort((a, b) => (deliveryTimestamps[a.id] || 0) - (deliveryTimestamps[b.id] || 0));
+
+            const pendingOrders = orders
+                .filter(o => o.status !== 'delivered')
+                .sort((a, b) => {
+                    const statusOrder = { 'out-for-delivery': 1, 'processing': 2 };
+                    const aStatus = statusOrder[a.status] || 3;
+                    const bStatus = statusOrder[b.status] || 3;
+                    if (aStatus !== bStatus) return aStatus - bStatus;
+                    const dateA = a.createdAt?.toDate() || new Date(0);
+                    const dateB = b.createdAt?.toDate() || new Date(0);
+                    return dateB - dateA;
+                });
+            
+            const sortedOrders = [...pendingOrders, ...deliveredOrders];
+            
+            const deliveredSerials = {};
+            deliveredOrders.forEach((order, index) => {
+                deliveredSerials[order.id] = index + 1;
+            });
+
+            sortedOrders.forEach((order) => {
+                const serialNumber = deliveredSerials[order.id] || '-';
+                ui.orderList.insertAdjacentHTML('beforeend', createOrderCard(order, serialNumber));
+            });
+            lucide.createIcons();
+            startLiveTimers();
+        }
+
+        function createOrderCard(order, serialNumber) {
+            const itemsHtml = order.items.map(item => `<li class="truncate">${item.name} (x${item.quantity})</li>`).join('');
+            const { color, text, bg } = getStatusInfo(order.status);
+            const isDelivered = order.status === 'delivered';
+            
+            const deliveryTimestamps = getFromStorage('deliveryTimestamps');
+            const acceptanceTimes = getFromStorage('orderAcceptanceTimes');
+            const totalDeliveryTimes = getFromStorage('totalDeliveryTimes');
+
+            let timeDetailsHtml = '';
+            const acceptedAt = acceptanceTimes[order.id];
+            const deliveredAt = deliveryTimestamps[order.id];
+            const totalDuration = totalDeliveryTimes[order.id];
+            
+            if (acceptedAt) {
+                 timeDetailsHtml += `<div class="flex items-start gap-3"> <i data-lucide="play-circle" class="w-5 h-5 text-gray-400 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Accepted at</p> <p>${formatTime(acceptedAt)}</p> </div> </div>`;
+            }
+
+            if (order.status === 'out-for-delivery') {
+                timeDetailsHtml += `<div class="flex items-start gap-3"> <i data-lucide="timer" class="w-5 h-5 text-orange-500 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Time Elapsed</p> <p id="timer-${order.id}" class="font-mono">...</p> </div> </div>`;
+            }
+            
+            if (deliveredAt) {
+                 timeDetailsHtml += `<div class="flex items-start gap-3"> <i data-lucide="flag" class="w-5 h-5 text-gray-400 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Delivered at</p> <p>${formatTime(deliveredAt)}</p> </div> </div>`;
+            }
+
+            if (typeof totalDuration === 'number') {
+                 timeDetailsHtml += `<div class="flex items-start gap-3"> <i data-lucide="award" class="w-5 h-5 text-blue-500 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Total Time Taken</p> <p>${totalDuration} minutes</p> </div> </div>`;
+            }
+            
+            const selectableOptions = ['out-for-delivery', 'delivered'];
+            let allOptions = [...selectableOptions];
+            if (!allOptions.includes(order.status) && !isDelivered) {
+                allOptions.unshift(order.status);
+            }
+
+            const statusDropdown = isDelivered 
+                ? `<p class="font-semibold text-green-600 dark:text-green-400 flex items-center gap-2"><i data-lucide="check-circle-2" class="w-5 h-5"></i>${text}</p>`
+                : `<select class="status-change-delivery text-sm border rounded-lg p-2 bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500" data-id="${order.id}">
+                       ${allOptions.map(s => {
+                           const displayName = s.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                           const isSelected = s === order.status ? 'selected' : '';
+                           const isDisabled = !selectableOptions.includes(s) ? 'disabled' : '';
+                           return `<option value="${s}" ${isSelected} ${isDisabled}>${displayName}</option>`;
+                       }).join('')}
+                   </select>`;
+            
+            let paymentHtml = '';
+            if (order.paymentMethod && order.paymentMethod.toLowerCase() === 'cash on delivery') {
+                const paymentLabel = isDelivered ? 'Payment Collected' : 'Payment to Collect';
+                const textColor = isDelivered ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+                const iconColor = isDelivered ? 'text-green-500' : 'text-red-500';
+                const icon = isDelivered ? 'check-circle-2' : 'wallet';
+                paymentHtml = `<div class="flex items-start gap-3"> <i data-lucide="${icon}" class="w-5 h-5 ${iconColor} mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">${paymentLabel}</p> <p class="font-bold text-lg ${textColor} mt-1">৳${order.totalAmount}</p> </div> </div>`;
+            }
+
+            return `
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 sm:p-5 border-l-4 ${color} ${bg}">
+                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+                     <div class="flex items-center gap-3">
+                        <span class="flex items-center justify-center w-8 h-8 ${isDelivered ? 'bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-300' : 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300'} font-bold rounded-full text-sm">${serialNumber}</span>
+                        <p class="font-bold text-lg text-gray-800 dark:text-white">Order #${order.id.slice(0, 6).toUpperCase()}</p>
+                    </div>
+                     <div class="text-sm">${statusDropdown}</div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 text-sm text-gray-700 dark:text-gray-300">
+                    <div class="flex items-start gap-3"> <i data-lucide="user-round" class="w-5 h-5 text-gray-400 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Customer</p> <p>${order.userName}</p> <div class="flex items-center gap-2 mt-1"> <p class="text-gray-600 dark:text-gray-400">${order.userMobile}</p> <a href="tel:${order.userMobile}" class="flex items-center justify-center text-green-600 hover:text-green-700 h-8 w-8 rounded-full bg-green-100 hover:bg-green-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-green-400 transition-colors duration-200 transform active:scale-90" title="Call Customer"> <i data-lucide="phone" class="w-4 h-4"></i> <span class="sr-only">Call Customer</span> </a> </div> </div> </div>
+                    <div class="flex items-start gap-3"> <i data-lucide="map-pin" class="w-5 h-5 text-gray-400 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Address</p> <p class="break-words">${order.userLocation}</p> <a href="https://www.google.com/maps?q=${encodeURIComponent(order.userLocation)}" target="_blank" class="text-blue-500 hover:underline text-xs flex items-center gap-1 mt-1">View on Map <i data-lucide="external-link" class="w-3 h-3"></i></a> </div> </div>
+                    <div class="flex items-start gap-3"> <i data-lucide="shopping-basket" class="w-5 h-5 text-gray-400 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Items</p> <ul class="list-disc list-inside space-y-1 mt-1 text-gray-600 dark:text-gray-400">${itemsHtml}</ul> </div> </div>
+                    ${paymentHtml}
+                    ${timeDetailsHtml}
+                </div>
+            </div>`;
+        }
+
+        // --- Business Logic ---
+        function calculateTotalCollection(orders) {
+            const total = orders.reduce((sum, order) => (order.paymentMethod?.toLowerCase() === 'cash on delivery' && order.status === 'delivered') ? sum + (order.totalAmount || 0) : sum, 0);
+            ui.totalCollection.textContent = `৳${total.toFixed(0)}`;
+        }
+
+        function startLiveTimers() {
+            if (state.liveTimerInterval) clearInterval(state.liveTimerInterval);
+            const deliveryStartTimes = getFromStorage('deliveryStartTimes');
+
+            state.liveTimerInterval = setInterval(() => {
+                Object.keys(deliveryStartTimes).forEach(orderId => {
+                    const timerEl = document.getElementById(`timer-${orderId}`);
+                    if (timerEl) {
+                        const elapsed = new Date().getTime() - deliveryStartTimes[orderId];
+                        const minutes = Math.floor(elapsed / 60000);
+                        const seconds = Math.floor((elapsed % 60000) / 1000);
+                        timerEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                    }
+                });
+            }, 1000);
+        }
+
+        // --- Event Listeners & Actions ---
+        document.addEventListener('change', async (e) => {
+            if (e.target.classList.contains('status-change-delivery')) {
+                const orderId = e.target.dataset.id;
+                const newStatus = e.target.value;
+                
+                const deliveryStartTimes = getFromStorage('deliveryStartTimes');
+                const deliveryTimestamps = getFromStorage('deliveryTimestamps');
+                const acceptanceTimes = getFromStorage('orderAcceptanceTimes');
+                const totalDeliveryTimes = getFromStorage('totalDeliveryTimes');
+
+                if (newStatus === 'out-for-delivery') {
+                    if(!deliveryStartTimes[orderId]) {
+                       deliveryStartTimes[orderId] = new Date().getTime();
+                    }
+                } else if (newStatus === 'delivered') {
+                    const deliveredAtTime = new Date().getTime();
+                    deliveryTimestamps[orderId] = deliveredAtTime;
+
+                    if (deliveryStartTimes[orderId]) {
+                        delete deliveryStartTimes[orderId]; 
+                    }
+
+                    const acceptedAtTime = acceptanceTimes[orderId];
+                    if(acceptedAtTime) {
+                        const totalDurationInMinutes = Math.round((deliveredAtTime - acceptedAtTime) / 60000);
+                        totalDeliveryTimes[orderId] = totalDurationInMinutes;
+                    }
+                }
+
+                saveToStorage('deliveryStartTimes', deliveryStartTimes);
+                saveToStorage('deliveryTimestamps', deliveryTimestamps);
+                saveToStorage('totalDeliveryTimes', totalDeliveryTimes);
+                
+                // Firestore update triggers onSnapshot, which handles re-rendering
+                await updateDoc(doc(db, 'orders', orderId), { status: newStatus });
+                showToast(`Order status updated.`);
+            }
+        });
+
+        // --- New Order Pop-up Logic ---
+        function processNewOrderQueue(newOrders) {
+            state.newOrderQueue.push(...newOrders);
+            if (ui.newOrderModal.classList.contains('modal-hidden')) {
+                 showNextOrderInQueue();
+            }
+        }
+
+        function showNextOrderInQueue() {
+            if (state.newOrderQueue.length === 0 || !ui.newOrderModal.classList.contains('modal-hidden')) return;
+            const order = state.newOrderQueue.shift();
+            
+            ui.acceptOrderBtn.dataset.orderId = order.id;
+
+            ui.newOrderDetails.innerHTML = `
+                <p><strong>Order ID:</strong> #${order.id.slice(0,6).toUpperCase()}</p>
+                <p><strong>Customer:</strong> ${order.userName}</p>
+                <p><strong>Address:</strong> ${order.userLocation}</p>
+                <p><strong>Total:</strong> ৳${order.totalAmount}</p>
+            `;
+            showModal(ui.newOrderModal);
+            playNotificationSound();
+        }
+        
+        ui.acceptOrderBtn.addEventListener('click', (e) => {
+            const orderId = e.currentTarget.dataset.orderId;
+            if (!orderId) return;
+
+            const acceptanceTimes = getFromStorage('orderAcceptanceTimes');
+            acceptanceTimes[orderId] = new Date().getTime();
+            saveToStorage('orderAcceptanceTimes', acceptanceTimes);
+            
+            // Immediately re-render the list to show the "Accepted at" time
+            const allOrders = Array.from(document.querySelectorAll('[data-id]')).map(el => ({id: el.dataset.id, status: el.value}));
+            renderOrders(allOrders);
+
+            hideModal(ui.newOrderModal);
+            setTimeout(showNextOrderInQueue, 300);
+        });
+
+        // --- Utility Functions (Sound, Modals, Toast) ---
+        function playNotificationSound() {
+            if (!state.audioContext) {
+                try {
+                  state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                } catch(e) {
+                  console.warn("Web Audio API is not supported in this browser.");
+                  return;
+                }
+            }
+            const oscillator = state.audioContext.createOscillator();
+            const gainNode = state.audioContext.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(state.audioContext.destination);
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(600, state.audioContext.currentTime);
+            gainNode.gain.setValueAtTime(0.3, state.audioContext.currentTime);
+            oscillator.start();
+            oscillator.stop(state.audioContext.currentTime + 0.2);
+        }
+
+        function showModal(modal) {
+            modal.classList.remove('modal-hidden');
+            lucide.createIcons();
+        }
+
+        function hideModal(modal) {
+            modal.classList.add('modal-hidden');
+        }
+        
+        function formatTime(timestamp) {
+            if (!timestamp) return '';
+            return new Date(timestamp).toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toast-message');
+            toastMessage.textContent = message;
+            const colorClasses = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                warning: 'bg-yellow-500 text-black'
+            };
+            toast.className = `fixed bottom-5 right-5 text-white py-2.5 px-5 rounded-lg shadow-lg transition-all duration-300 ${colorClasses[type] || 'bg-green-500'} z-50`;
+            toast.classList.remove('toast-enter', 'toast-exit-active');
+            toast.classList.add('toast-enter-active');
+            setTimeout(() => {
+                toast.classList.remove('toast-enter-active');
+                toast.classList.add('toast-exit-active');
+            }, 4000);
+        }
+        
+        function getStatusInfo(status) {
+            switch (status) {
+                case 'out-for-delivery': return { color: 'border-orange-500', text: 'Out for Delivery', bg: 'bg-orange-50 dark:bg-orange-900/20' };
+                case 'delivered': return { color: 'border-green-500', text: 'Delivered', bg: 'bg-green-50 dark:bg-green-900/20' };
+                default: return { color: 'border-blue-500', text: 'Processing', bg: 'bg-blue-50 dark:bg-blue-900/20' };
+            }
+        }
+
+        lucide.createIcons();
+    </script>
+</body>
+</html>
+
