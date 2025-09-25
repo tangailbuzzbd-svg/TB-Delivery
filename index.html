@@ -150,7 +150,7 @@
             </div>
             <div class="text-center mb-6">
                 <div class="w-24 h-24 rounded-full bg-blue-100 dark:bg-blue-900 mx-auto flex items-center justify-center mb-3">
-                     <i data-lucide="user-round-cog" class="w-12 h-12 text-blue-500"></i>
+                     <i data-lucide="bike" class="w-12 h-12 text-blue-500"></i>
                 </div>
                 <p id="profile-name" class="text-xl font-semibold text-gray-800 dark:text-white"></p>
                 <p id="profile-email" class="text-sm text-gray-500 dark:text-gray-400"></p>
@@ -307,7 +307,10 @@
             }
         });
         
-        ui.logoutButtonModal.addEventListener('click', () => signOut(auth));
+        ui.logoutButtonModal.addEventListener('click', () => {
+            hideModal(ui.profileModal);
+            signOut(auth);
+        });
 
         function initializeDashboard(user, deliveryManData) {
             state.currentUserData = deliveryManData;
