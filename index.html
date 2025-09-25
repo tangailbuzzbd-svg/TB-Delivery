@@ -34,13 +34,22 @@
             opacity: 0;
             transform: scale(0.95) translateY(20px);
         }
+        /* Style for date picker icon */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+            filter: invert(0.5);
+        }
+        .dark input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
     </style>
 </head>
 <body class="bg-gray-50 dark:bg-gray-900">
 
     <!-- Loading Spinner -->
-    <div id="loading-spinner" class="flex items-center justify-center min-h-screen">
+    <div id="loading-spinner" class="flex flex-col items-center justify-center min-h-screen">
         <div class="w-16 h-16 border-4 border-t-4 border-gray-200 border-t-blue-600 rounded-full animate-spin"></div>
+        <p id="loading-message" class="mt-4 text-gray-600 dark:text-gray-300">Initializing...</p>
     </div>
     
     <!-- Login Screen -->
@@ -69,23 +78,34 @@
     <!-- Main Application -->
     <div id="app-container" class="hidden">
         <header class="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-10 border-b border-gray-200 dark:border-gray-700">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-                <div>
-                    <h1 class="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">Delivery Dashboard</h1>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Welcome, <span id="delivery-man-name" class="font-semibold"></span>!</p>
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
+                <h1 class="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">Delivery Dashboard</h1>
+                <div class="flex items-center gap-4">
+                    <p class="text-sm text-gray-500 dark:text-gray-400 text-right hidden sm:block">Welcome,<br><span id="delivery-man-name" class="font-semibold"></span></p>
+                    <button id="profile-button" class="flex-shrink-0 w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-600 transition">
+                        <i data-lucide="user" class="w-5 h-5 text-gray-600 dark:text-gray-300"></i>
+                    </button>
                 </div>
-                <button id="logout-button" class="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors duration-200 transform active:scale-95">
-                    <i data-lucide="log-out" class="w-4 h-4"></i>
-                    <span class="hidden sm:inline">Logout</span>
-                </button>
             </div>
         </header>
 
         <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div id="dashboard-content">
                  <div class="mb-6 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm text-center">
-                    <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Total COD Collection (All Time)</p>
-                    <p id="total-collection-info" class="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">৳0</p>
+                    <div class="flex flex-col sm:flex-row justify-center items-center gap-2 mb-2">
+                       <label for="collection-date" class="text-sm font-medium text-gray-700 dark:text-gray-300">Stats for:</label>
+                       <input type="date" id="collection-date" class="bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md p-1.5 text-sm text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                     <div class="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x dark:divide-gray-700 mt-2">
+                        <div class="p-2">
+                            <p class="text-sm text-gray-500 dark:text-gray-400">COD Collection</p>
+                            <p id="total-collection-info" class="text-2xl font-bold text-green-600 dark:text-green-400">৳0</p>
+                        </div>
+                        <div class="p-2">
+                            <p class="text-sm text-gray-500 dark:text-gray-400">Total Deliveries</p>
+                            <p id="total-deliveries-info" class="text-2xl font-bold text-blue-600 dark:text-blue-400">0</p>
+                        </div>
+                    </div>
                  </div>
 
                 <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Your Assigned Orders</h2>
@@ -113,6 +133,46 @@
         </div>
     </div>
     
+    <!-- Profile Modal -->
+    <div id="profile-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-hidden">
+        <div class="modal-backdrop absolute inset-0"></div>
+        <div class="modal-content relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm m-4 p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-2xl font-bold text-gray-800 dark:text-white">My Profile</h3>
+                <button id="close-profile-modal-btn" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+            <div class="text-center mb-6">
+                <div class="w-24 h-24 rounded-full bg-blue-100 dark:bg-blue-900 mx-auto flex items-center justify-center mb-3">
+                     <i data-lucide="user-round-cog" class="w-12 h-12 text-blue-500"></i>
+                </div>
+                <p id="profile-name" class="text-xl font-semibold text-gray-800 dark:text-white"></p>
+                <p id="profile-email" class="text-sm text-gray-500 dark:text-gray-400"></p>
+            </div>
+
+            <div class="space-y-4 mb-6">
+                <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                    <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Total Orders Delivered</span>
+                    <span id="profile-total-orders" class="font-bold text-gray-800 dark:text-white">0</span>
+                </div>
+                <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                    <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Total COD Collected</span>
+                    <span id="profile-total-cod" class="font-bold text-gray-800 dark:text-white">৳0</span>
+                </div>
+                <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                    <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Avg. Delivery Time</span>
+                    <span id="profile-avg-time" class="font-bold text-gray-800 dark:text-white">N/A</span>
+                </div>
+            </div>
+
+            <button id="logout-button-modal" class="w-full flex items-center justify-center gap-2 py-3 font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 focus:ring-red-500 transition-colors duration-200 transform active:scale-95">
+                 <i data-lucide="log-out" class="w-4 h-4"></i>
+                 <span>Logout</span>
+            </button>
+        </div>
+    </div>
+
     <!-- Toast Notification -->
     <div id="toast" class="fixed bottom-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg transition-all duration-300 toast-enter z-50">
         <p id="toast-message"></p>
@@ -132,7 +192,7 @@
             messagingSenderId: "1080138191394",
             appId: "1:1080138191394:web:0e96b05009820b5dc5b07b"
         };
-
+        
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
@@ -146,11 +206,21 @@
             appContainer: document.getElementById('app-container'),
             deliveryManName: document.getElementById('delivery-man-name'),
             orderList: document.getElementById('order-list'),
-            logoutButton: document.getElementById('logout-button'),
+            profileButton: document.getElementById('profile-button'),
             totalCollection: document.getElementById('total-collection-info'),
+            totalDeliveries: document.getElementById('total-deliveries-info'),
+            collectionDate: document.getElementById('collection-date'),
             newOrderModal: document.getElementById('new-order-modal'),
             newOrderDetails: document.getElementById('new-order-details'),
             acceptOrderBtn: document.getElementById('accept-order-btn'),
+            profileModal: document.getElementById('profile-modal'),
+            closeProfileModalBtn: document.getElementById('close-profile-modal-btn'),
+            logoutButtonModal: document.getElementById('logout-button-modal'),
+            profileName: document.getElementById('profile-name'),
+            profileEmail: document.getElementById('profile-email'),
+            profileTotalOrders: document.getElementById('profile-total-orders'),
+            profileTotalCod: document.getElementById('profile-total-cod'),
+            profileAvgTime: document.getElementById('profile-avg-time'),
         };
 
         let state = {
@@ -161,33 +231,46 @@
             newOrderQueue: [],
             audioContext: null,
             allOrders: [], // Holds the current list of all orders from Firestore
+            currentUserData: null,
         };
         
-        // --- Local Storage Helpers ---
-        const getFromStorage = (key, defaultValue = {}) => JSON.parse(localStorage.getItem(key)) || defaultValue;
-        const saveToStorage = (key, value) => localStorage.setItem(key, JSON.stringify(value));
-        
+        // --- Initialization ---
+        function setInitialDate() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            ui.collectionDate.value = `${year}-${month}-${day}`;
+        }
+        setInitialDate();
+
         // --- Authentication ---
         onAuthStateChanged(auth, async (user) => {
             ui.loadingSpinner.classList.add('hidden');
             if (user) {
                 const deliveryManRef = doc(db, 'deliveryMen', user.uid);
                 const deliveryManDoc = await getDoc(deliveryManRef);
+                
                 if (deliveryManDoc.exists()) {
                     ui.loginScreen.classList.add('hidden');
                     ui.appContainer.classList.remove('hidden');
                     initializeDashboard(user, deliveryManDoc.data());
                 } else {
-                    await signOut(auth);
-                    ui.loginError.textContent = "You are not a registered delivery person.";
-                    ui.appContainer.classList.add('hidden');
-                    ui.loginScreen.classList.remove('hidden');
+                    await signOut(auth); // This will re-trigger onAuthStateChanged
+                    localStorage.setItem('loginError', 'You are not a registered delivery person.');
                 }
             } else {
                 if (state.unsubscribeOrders) state.unsubscribeOrders();
                 if (state.liveTimerInterval) clearInterval(state.liveTimerInterval);
+                
                 ui.appContainer.classList.add('hidden');
                 ui.loginScreen.classList.remove('hidden');
+
+                const loginErrorMsg = localStorage.getItem('loginError');
+                if (loginErrorMsg) {
+                    ui.loginError.textContent = loginErrorMsg;
+                    localStorage.removeItem('loginError');
+                }
             }
         });
 
@@ -200,10 +283,11 @@
                 ui.loginError.textContent = "Incorrect email or password.";
             }
         });
-
-        ui.logoutButton.addEventListener('click', () => signOut(auth));
+        
+        ui.logoutButtonModal.addEventListener('click', () => signOut(auth));
 
         function initializeDashboard(user, deliveryManData) {
+            state.currentUserData = deliveryManData;
             ui.deliveryManName.textContent = deliveryManData.name || "Delivery Staff";
             listenForAssignedOrders(user.uid);
             lucide.createIcons();
@@ -233,7 +317,7 @@
                 }
                 
                 renderOrders(state.allOrders);
-                calculateTotalCollection(state.allOrders);
+                calculateDailyStats(state.allOrders);
 
                 if (newOrders.length > 0) {
                     processNewOrderQueue(newOrders);
@@ -252,10 +336,9 @@
                 return;
             }
 
-            const deliveryTimestamps = getFromStorage('deliveryTimestamps');
             const deliveredOrders = orders
                 .filter(o => o.status === 'delivered')
-                .sort((a, b) => (deliveryTimestamps[a.id] || 0) - (deliveryTimestamps[b.id] || 0));
+                .sort((a, b) => (a.deliveredAt?.toMillis() || 0) - (b.deliveredAt?.toMillis() || 0));
 
             const pendingOrders = orders
                 .filter(o => o.status !== 'delivered')
@@ -289,29 +372,22 @@
             const { color, text, bg } = getStatusInfo(order.status);
             const isDelivered = order.status === 'delivered';
             
-            const deliveryTimestamps = getFromStorage('deliveryTimestamps');
-            const acceptanceTimes = getFromStorage('orderAcceptanceTimes');
-            const totalDeliveryTimes = getFromStorage('totalDeliveryTimes');
-
             let timeDetailsHtml = '';
-            const acceptedAt = acceptanceTimes[order.id];
-            const deliveredAt = deliveryTimestamps[order.id];
-            const totalDuration = totalDeliveryTimes[order.id];
             
-            if (acceptedAt) {
-                 timeDetailsHtml += `<div class="flex items-start gap-3"> <i data-lucide="play-circle" class="w-5 h-5 text-gray-400 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Accepted at</p> <p>${formatTime(acceptedAt)}</p> </div> </div>`;
+            if (order.acceptedAt) {
+                 timeDetailsHtml += `<div class="flex items-start gap-3"> <i data-lucide="play-circle" class="w-5 h-5 text-gray-400 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Accepted at</p> <p>${formatTime(order.acceptedAt.toDate())}</p> </div> </div>`;
             }
 
-            if (order.status === 'out-for-delivery') {
+            if (order.status === 'out-for-delivery' && order.outForDeliveryAt) {
                 timeDetailsHtml += `<div class="flex items-start gap-3"> <i data-lucide="timer" class="w-5 h-5 text-orange-500 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Time Elapsed</p> <p id="timer-${order.id}" class="font-mono">...</p> </div> </div>`;
             }
             
-            if (deliveredAt) {
-                 timeDetailsHtml += `<div class="flex items-start gap-3"> <i data-lucide="flag" class="w-5 h-5 text-gray-400 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Delivered at</p> <p>${formatTime(deliveredAt)}</p> </div> </div>`;
+            if (order.deliveredAt) {
+                 timeDetailsHtml += `<div class="flex items-start gap-3"> <i data-lucide="flag" class="w-5 h-5 text-gray-400 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Delivered at</p> <p>${formatTime(order.deliveredAt.toDate())}</p> </div> </div>`;
             }
 
-            if (typeof totalDuration === 'number') {
-                 timeDetailsHtml += `<div class="flex items-start gap-3"> <i data-lucide="award" class="w-5 h-5 text-blue-500 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Total Time Taken</p> <p>${totalDuration} minutes</p> </div> </div>`;
+            if (typeof order.totalDeliveryDurationMinutes === 'number') {
+                 timeDetailsHtml += `<div class="flex items-start gap-3"> <i data-lucide="award" class="w-5 h-5 text-blue-500 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Total Time Taken</p> <p>${order.totalDeliveryDurationMinutes} minutes</p> </div> </div>`;
             }
             
             const selectableOptions = ['out-for-delivery', 'delivered'];
@@ -323,13 +399,13 @@
             const statusDropdown = isDelivered 
                 ? `<p class="font-semibold text-green-600 dark:text-green-400 flex items-center gap-2"><i data-lucide="check-circle-2" class="w-5 h-5"></i>${text}</p>`
                 : `<select class="status-change-delivery text-sm border rounded-lg p-2 bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500" data-id="${order.id}">
-                       ${allOptions.map(s => {
-                           const displayName = s.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                           const isSelected = s === order.status ? 'selected' : '';
-                           const isDisabled = !selectableOptions.includes(s) ? 'disabled' : '';
-                           return `<option value="${s}" ${isSelected} ${isDisabled}>${displayName}</option>`;
-                       }).join('')}
-                   </select>`;
+                        ${allOptions.map(s => {
+                            const displayName = s.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                            const isSelected = s === order.status ? 'selected' : '';
+                            const isDisabled = !selectableOptions.includes(s) ? 'disabled' : '';
+                            return `<option value="${s}" ${isSelected} ${isDisabled}>${displayName}</option>`;
+                        }).join('')}
+                    </select>`;
             
             let paymentHtml = '';
             if (order.paymentMethod && order.paymentMethod.toLowerCase() === 'cash on delivery') {
@@ -344,9 +420,9 @@
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 sm:p-5 border-l-4 ${color} ${bg}">
                 <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
                      <div class="flex items-center gap-3">
-                        <span class="flex items-center justify-center w-8 h-8 ${isDelivered ? 'bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-300' : 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300'} font-bold rounded-full text-sm">${serialNumber}</span>
-                        <p class="font-bold text-lg text-gray-800 dark:text-white">Order #${order.id.slice(0, 6).toUpperCase()}</p>
-                    </div>
+                         <span class="flex items-center justify-center w-8 h-8 ${isDelivered ? 'bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-300' : 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300'} font-bold rounded-full text-sm">${serialNumber}</span>
+                         <p class="font-bold text-lg text-gray-800 dark:text-white">Order #${order.id.slice(0, 6).toUpperCase()}</p>
+                     </div>
                      <div class="text-sm">${statusDropdown}</div>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 text-sm text-gray-700 dark:text-gray-300">
@@ -360,65 +436,94 @@
         }
 
         // --- Business Logic ---
-        function calculateTotalCollection(orders) {
-            const total = orders.reduce((sum, order) => (order.paymentMethod?.toLowerCase() === 'cash on delivery' && order.status === 'delivered') ? sum + (order.totalAmount || 0) : sum, 0);
-            ui.totalCollection.textContent = `৳${total.toFixed(0)}`;
+        function calculateDailyStats(orders) {
+            const selectedDateStr = ui.collectionDate.value;
+            if (!selectedDateStr) {
+                ui.totalCollection.textContent = '৳0';
+                ui.totalDeliveries.textContent = '0';
+                return;
+            }
+            
+            const selectedDate = new Date(selectedDateStr);
+            const startOfDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+            const endOfDay = new Date(startOfDay);
+            endOfDay.setDate(startOfDay.getDate() + 1);
+
+            let totalCollection = 0;
+            let totalDeliveries = 0;
+
+            orders.forEach(order => {
+                if (order.deliveredAt) {
+                    const deliveredDate = order.deliveredAt.toDate();
+                    const deliveredOnSelectedDate = deliveredDate >= startOfDay && deliveredDate < endOfDay;
+                    
+                    if (order.status === 'delivered' && deliveredOnSelectedDate) {
+                        totalDeliveries++;
+                        if (order.paymentMethod?.toLowerCase() === 'cash on delivery') {
+                            totalCollection += (order.totalAmount || 0);
+                        }
+                    }
+                }
+            });
+
+            ui.totalCollection.textContent = `৳${totalCollection.toFixed(0)}`;
+            ui.totalDeliveries.textContent = totalDeliveries;
         }
 
         function startLiveTimers() {
             if (state.liveTimerInterval) clearInterval(state.liveTimerInterval);
-            const deliveryStartTimes = getFromStorage('deliveryStartTimes');
 
             state.liveTimerInterval = setInterval(() => {
-                Object.keys(deliveryStartTimes).forEach(orderId => {
-                    const timerEl = document.getElementById(`timer-${orderId}`);
-                    if (timerEl) {
-                        const elapsed = new Date().getTime() - deliveryStartTimes[orderId];
-                        const minutes = Math.floor(elapsed / 60000);
-                        const seconds = Math.floor((elapsed % 60000) / 1000);
-                        timerEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                state.allOrders.forEach(order => {
+                    if (order.status === 'out-for-delivery' && order.outForDeliveryAt) {
+                        const timerEl = document.getElementById(`timer-${order.id}`);
+                        if (timerEl) {
+                            const elapsed = new Date().getTime() - order.outForDeliveryAt.toDate().getTime();
+                            const minutes = Math.floor(elapsed / 60000);
+                            const seconds = Math.floor((elapsed % 60000) / 1000);
+                            timerEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                        }
                     }
                 });
             }, 1000);
         }
 
         // --- Event Listeners & Actions ---
+        ui.collectionDate.addEventListener('change', () => {
+            calculateDailyStats(state.allOrders);
+        });
+
         document.addEventListener('change', async (e) => {
             if (e.target.classList.contains('status-change-delivery')) {
                 const orderId = e.target.dataset.id;
                 const newStatus = e.target.value;
-                
-                const deliveryStartTimes = getFromStorage('deliveryStartTimes');
-                const deliveryTimestamps = getFromStorage('deliveryTimestamps');
-                const acceptanceTimes = getFromStorage('orderAcceptanceTimes');
-                const totalDeliveryTimes = getFromStorage('totalDeliveryTimes');
+                const orderRef = doc(db, 'orders', orderId);
+                let updatePayload = { status: newStatus };
 
-                if (newStatus === 'out-for-delivery') {
-                    if(!deliveryStartTimes[orderId]) {
-                       deliveryStartTimes[orderId] = new Date().getTime();
-                    }
-                } else if (newStatus === 'delivered') {
-                    const deliveredAtTime = new Date().getTime();
-                    deliveryTimestamps[orderId] = deliveredAtTime;
+                try {
+                    if (newStatus === 'out-for-delivery') {
+                        updatePayload.outForDeliveryAt = new Date();
+                    } else if (newStatus === 'delivered') {
+                        const orderSnap = await getDoc(orderRef);
+                        const orderData = orderSnap.data();
+                        
+                        const startTime = orderData.acceptedAt?.toDate() || orderData.createdAt?.toDate();
+                        const deliveredAtTime = new Date();
+                        updatePayload.deliveredAt = deliveredAtTime;
 
-                    if (deliveryStartTimes[orderId]) {
-                        delete deliveryStartTimes[orderId]; 
+                        if (startTime) {
+                             const totalDurationInMinutes = Math.round((deliveredAtTime - startTime) / 60000);
+                             updatePayload.totalDeliveryDurationMinutes = totalDurationInMinutes;
+                        }
                     }
 
-                    const acceptedAtTime = acceptanceTimes[orderId];
-                    if(acceptedAtTime) {
-                        const totalDurationInMinutes = Math.round((deliveredAtTime - acceptedAtTime) / 60000);
-                        totalDeliveryTimes[orderId] = totalDurationInMinutes;
-                    }
+                    await updateDoc(orderRef, updatePayload);
+                    showToast(`Order status updated.`);
+                } catch(error) {
+                    console.error("Failed to update order status:", error);
+                    showToast("Could not update status.", "error");
+                    e.target.value = state.allOrders.find(o => o.id === orderId)?.status || '';
                 }
-
-                saveToStorage('deliveryStartTimes', deliveryStartTimes);
-                saveToStorage('deliveryTimestamps', deliveryTimestamps);
-                saveToStorage('totalDeliveryTimes', totalDeliveryTimes);
-                
-                // Firestore update triggers onSnapshot, which handles re-rendering
-                await updateDoc(doc(db, 'orders', orderId), { status: newStatus });
-                showToast(`Order status updated.`);
             }
         });
 
@@ -446,21 +551,47 @@
             playNotificationSound();
         }
         
-        ui.acceptOrderBtn.addEventListener('click', (e) => {
+        ui.acceptOrderBtn.addEventListener('click', async (e) => {
             const orderId = e.currentTarget.dataset.orderId;
             if (!orderId) return;
 
-            const acceptanceTimes = getFromStorage('orderAcceptanceTimes');
-            acceptanceTimes[orderId] = new Date().getTime();
-            saveToStorage('orderAcceptanceTimes', acceptanceTimes);
+            try {
+                await updateDoc(doc(db, 'orders', orderId), { acceptedAt: new Date() });
+                showToast("Order accepted!", "success");
+            } catch (error) {
+                console.error("Failed to accept order:", error);
+                showToast("Could not accept order.", "error");
+            }
             
-            // Immediately re-render the list to show the "Accepted at" time
-            const allOrders = Array.from(document.querySelectorAll('[data-id]')).map(el => ({id: el.dataset.id, status: el.value}));
-            renderOrders(allOrders);
-
             hideModal(ui.newOrderModal);
-            setTimeout(showNextOrderInQueue, 300);
+            setTimeout(showNextOrderInQueue, 300); 
         });
+
+        // --- Profile Modal Logic ---
+        function showProfileModal() {
+            if (!auth.currentUser || !state.currentUserData) return;
+
+            const deliveredOrders = state.allOrders.filter(o => o.status === 'delivered');
+            const totalDelivered = deliveredOrders.length;
+            const totalCod = deliveredOrders.reduce((sum, order) => (order.paymentMethod?.toLowerCase() === 'cash on delivery') ? sum + (order.totalAmount || 0) : sum, 0);
+            
+            const ordersWithTime = deliveredOrders.filter(o => typeof o.totalDeliveryDurationMinutes === 'number');
+            const totalMinutes = ordersWithTime.reduce((sum, o) => sum + o.totalDeliveryDurationMinutes, 0);
+            const avgTime = ordersWithTime.length > 0 ? Math.round(totalMinutes / ordersWithTime.length) : 0;
+            
+            ui.profileName.textContent = state.currentUserData.name || 'Delivery Staff';
+            ui.profileEmail.textContent = auth.currentUser.email;
+            ui.profileTotalOrders.textContent = totalDelivered;
+            ui.profileTotalCod.textContent = `৳${totalCod.toFixed(0)}`;
+            ui.profileAvgTime.textContent = avgTime > 0 ? `${avgTime} min` : 'N/A';
+
+            showModal(ui.profileModal);
+        }
+
+        ui.profileButton.addEventListener('click', showProfileModal);
+        ui.closeProfileModalBtn.addEventListener('click', () => hideModal(ui.profileModal));
+        ui.profileModal.querySelector('.modal-backdrop').addEventListener('click', () => hideModal(ui.profileModal));
+
 
         // --- Utility Functions (Sound, Modals, Toast) ---
         function playNotificationSound() {
@@ -471,6 +602,9 @@
                   console.warn("Web Audio API is not supported in this browser.");
                   return;
                 }
+            }
+            if (state.audioContext.state === 'suspended') {
+                state.audioContext.resume();
             }
             const oscillator = state.audioContext.createOscillator();
             const gainNode = state.audioContext.createGain();
@@ -492,9 +626,9 @@
             modal.classList.add('modal-hidden');
         }
         
-        function formatTime(timestamp) {
-            if (!timestamp) return '';
-            return new Date(timestamp).toLocaleTimeString('en-US', {
+        function formatTime(date) {
+            if (!date || !(date instanceof Date)) return '';
+            return date.toLocaleTimeString('en-US', {
                 hour: '2-digit',
                 minute: '2-digit',
                 hour12: true
@@ -527,7 +661,9 @@
             }
         }
 
+        // Initialize the app
         lucide.createIcons();
+
     </script>
 </body>
 </html>
