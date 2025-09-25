@@ -107,8 +107,13 @@
                         </div>
                     </div>
                  </div>
-
-                <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Your Assigned Orders</h2>
+                
+                 <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200">Your Assigned Orders</h2>
+                    <button id="refresh-button" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200 disabled:opacity-50" title="Refresh Orders">
+                        <i data-lucide="refresh-cw" class="w-5 h-5 text-gray-600 dark:text-gray-400"></i>
+                    </button>
+                </div>
                 <div id="order-list" class="space-y-4">
                     <!-- Orders will be dynamically inserted here -->
                 </div>
@@ -152,6 +157,22 @@
             </div>
 
             <div class="space-y-4 mb-6">
+                <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                    <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Phone Number</span>
+                    <span id="profile-phone" class="font-bold text-gray-800 dark:text-white">N/A</span>
+                </div>
+                <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                    <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Vehicle</span>
+                    <span id="profile-vehicle" class="font-bold text-gray-800 dark:text-white">N/A</span>
+                </div>
+                <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                    <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Account Status</span>
+                    <span id="profile-status" class="font-bold text-gray-800 dark:text-white">N/A</span>
+                </div>
+                 <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                    <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Joined On</span>
+                    <span id="profile-joined-on" class="font-bold text-gray-800 dark:text-white">N/A</span>
+                </div>
                 <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
                     <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Total Orders Delivered</span>
                     <span id="profile-total-orders" class="font-bold text-gray-800 dark:text-white">0</span>
@@ -207,6 +228,7 @@
             deliveryManName: document.getElementById('delivery-man-name'),
             orderList: document.getElementById('order-list'),
             profileButton: document.getElementById('profile-button'),
+            refreshButton: document.getElementById('refresh-button'),
             totalCollection: document.getElementById('total-collection-info'),
             totalDeliveries: document.getElementById('total-deliveries-info'),
             collectionDate: document.getElementById('collection-date'),
@@ -218,6 +240,10 @@
             logoutButtonModal: document.getElementById('logout-button-modal'),
             profileName: document.getElementById('profile-name'),
             profileEmail: document.getElementById('profile-email'),
+            profilePhone: document.getElementById('profile-phone'),
+            profileVehicle: document.getElementById('profile-vehicle'),
+            profileStatus: document.getElementById('profile-status'),
+            profileJoinedOn: document.getElementById('profile-joined-on'),
             profileTotalOrders: document.getElementById('profile-total-orders'),
             profileTotalCod: document.getElementById('profile-total-cod'),
             profileAvgTime: document.getElementById('profile-avg-time'),
@@ -225,6 +251,7 @@
 
         let state = {
             unsubscribeOrders: null,
+            unsubscribeDeliveryMan: null,
             liveTimerInterval: null,
             seenOrderIds: new Set(),
             isFirstLoad: true,
@@ -261,6 +288,7 @@
                 }
             } else {
                 if (state.unsubscribeOrders) state.unsubscribeOrders();
+                if (state.unsubscribeDeliveryMan) state.unsubscribeDeliveryMan();
                 if (state.liveTimerInterval) clearInterval(state.liveTimerInterval);
                 
                 ui.appContainer.classList.add('hidden');
@@ -290,10 +318,35 @@
             state.currentUserData = deliveryManData;
             ui.deliveryManName.textContent = deliveryManData.name || "Delivery Staff";
             listenForAssignedOrders(user.uid);
+            listenForDeliveryManUpdates(user.uid);
             lucide.createIcons();
         }
 
-        // --- Real-time Order Listening ---
+        // --- Real-time Data Listening ---
+        function listenForDeliveryManUpdates(uid) {
+            if (state.unsubscribeDeliveryMan) state.unsubscribeDeliveryMan();
+
+            const deliveryManRef = doc(db, 'deliveryMen', uid);
+            state.unsubscribeDeliveryMan = onSnapshot(deliveryManRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    state.currentUserData = docSnap.data();
+                    ui.deliveryManName.textContent = state.currentUserData.name || "Delivery Staff";
+                    
+                    // If profile modal is open, refresh its content
+                    if (!ui.profileModal.classList.contains('modal-hidden')) {
+                        showProfileModal();
+                    }
+                } else {
+                    console.error("Delivery man document not found. Signing out.");
+                    showToast("Your account data is missing.", "error");
+                    signOut(auth);
+                }
+            }, (error) => {
+                console.error("Error listening for delivery man updates:", error);
+                showToast("Could not sync profile data.", "error");
+            });
+        }
+        
         function listenForAssignedOrders(uid) {
             const ordersQuery = query(collection(db, 'orders'), where("assignedDeliveryManId", "==", uid));
             if (state.unsubscribeOrders) state.unsubscribeOrders();
@@ -492,6 +545,26 @@
         ui.collectionDate.addEventListener('change', () => {
             calculateDailyStats(state.allOrders);
         });
+        
+        ui.refreshButton.addEventListener('click', () => {
+            const icon = ui.refreshButton.querySelector('svg');
+            if (icon) {
+                icon.classList.add('animate-spin');
+            }
+            ui.refreshButton.disabled = true;
+
+            // Re-run the render and calculation functions with the current state data
+            renderOrders(state.allOrders);
+            calculateDailyStats(state.allOrders);
+
+            setTimeout(() => {
+                if (icon) {
+                    icon.classList.remove('animate-spin');
+                }
+                ui.refreshButton.disabled = false;
+                showToast("Order list refreshed!");
+            }, 700);
+        });
 
         document.addEventListener('change', async (e) => {
             if (e.target.classList.contains('status-change-delivery')) {
@@ -581,6 +654,24 @@
             
             ui.profileName.textContent = state.currentUserData.name || 'Delivery Staff';
             ui.profileEmail.textContent = auth.currentUser.email;
+            ui.profilePhone.textContent = state.currentUserData.phone || 'N/A';
+            ui.profileVehicle.textContent = state.currentUserData.vehicle || 'N/A';
+            
+            if (state.currentUserData.accountStatus === 'active') {
+                ui.profileStatus.textContent = 'Active';
+                ui.profileStatus.className = 'px-2 py-1 text-xs font-bold text-green-800 bg-green-200 dark:text-green-200 dark:bg-green-800 rounded-full';
+            } else {
+                ui.profileStatus.textContent = 'Inactive';
+                ui.profileStatus.className = 'px-2 py-1 text-xs font-bold text-red-800 bg-red-200 dark:text-red-200 dark:bg-red-800 rounded-full';
+            }
+            
+            if (state.currentUserData.createdAt && state.currentUserData.createdAt.toDate) {
+                const joinedDate = state.currentUserData.createdAt.toDate();
+                ui.profileJoinedOn.textContent = joinedDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            } else {
+                ui.profileJoinedOn.textContent = 'N/A';
+            }
+
             ui.profileTotalOrders.textContent = totalDelivered;
             ui.profileTotalCod.textContent = `৳${totalCod.toFixed(0)}`;
             ui.profileAvgTime.textContent = avgTime > 0 ? `${avgTime} min` : 'N/A';
