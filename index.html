@@ -177,10 +177,6 @@
                     <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Total COD Collected</span>
                     <span id="profile-total-cod" class="font-bold text-gray-800 dark:text-white">৳0</span>
                 </div>
-                <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
-                    <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Avg. Delivery Time</span>
-                    <span id="profile-avg-time" class="font-bold text-gray-800 dark:text-white">N/A</span>
-                </div>
             </div>
 
             <button id="logout-button-modal" class="w-full flex items-center justify-center gap-2 py-3 font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 focus:ring-red-500 transition-colors duration-200 transform active:scale-95">
@@ -241,7 +237,6 @@
             profileStatus: document.getElementById('profile-status'),
             profileTotalOrders: document.getElementById('profile-total-orders'),
             profileTotalCod: document.getElementById('profile-total-cod'),
-            profileAvgTime: document.getElementById('profile-avg-time'),
         };
 
         let state = {
@@ -646,10 +641,6 @@
             const totalDelivered = deliveredOrders.length;
             const totalCod = deliveredOrders.reduce((sum, order) => (order.paymentMethod?.toLowerCase() === 'cash on delivery') ? sum + (order.totalAmount || 0) : sum, 0);
             
-            const ordersWithTime = deliveredOrders.filter(o => typeof o.totalDeliveryDurationMinutes === 'number');
-            const totalMinutes = ordersWithTime.reduce((sum, o) => sum + o.totalDeliveryDurationMinutes, 0);
-            const avgTime = ordersWithTime.length > 0 ? Math.round(totalMinutes / ordersWithTime.length) : 0;
-            
             ui.profileName.textContent = state.currentUserData.name || 'Delivery Staff';
             ui.profileEmail.textContent = auth.currentUser.email;
             ui.profilePhone.textContent = state.currentUserData.phone || 'N/A';
@@ -665,7 +656,6 @@
 
             ui.profileTotalOrders.textContent = totalDelivered;
             ui.profileTotalCod.textContent = `৳${totalCod.toFixed(0)}`;
-            ui.profileAvgTime.textContent = avgTime > 0 ? `${avgTime} min` : 'N/A';
 
             showModal(ui.profileModal);
         }
