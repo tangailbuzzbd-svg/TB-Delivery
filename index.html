@@ -209,7 +209,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
-        
+
         // --- UI Elements & State ---
         const ui = {
             loadingSpinner: document.getElementById('loading-spinner'),
@@ -263,32 +263,43 @@
 
         // --- Authentication ---
         onAuthStateChanged(auth, async (user) => {
-            ui.loadingSpinner.classList.add('hidden');
-            if (user) {
-                const deliveryManRef = doc(db, 'deliveryMen', user.uid);
-                const deliveryManDoc = await getDoc(deliveryManRef);
-                
-                if (deliveryManDoc.exists()) {
-                    ui.loginScreen.classList.add('hidden');
-                    ui.appContainer.classList.remove('hidden');
-                    initializeDashboard(user, deliveryManDoc.data());
+            try {
+                ui.loadingSpinner.classList.add('hidden');
+                if (user) {
+                    const deliveryManRef = doc(db, 'deliveryMen', user.uid);
+                    const deliveryManDoc = await getDoc(deliveryManRef);
+                    
+                    if (deliveryManDoc.exists()) {
+                        ui.loginScreen.classList.add('hidden');
+                        ui.appContainer.classList.remove('hidden');
+                        initializeDashboard(user, deliveryManDoc.data());
+                    } else {
+                        await signOut(auth); 
+                        localStorage.setItem('loginError', 'You are not a registered delivery person.');
+                    }
                 } else {
-                    await signOut(auth); // This will re-trigger onAuthStateChanged
-                    localStorage.setItem('loginError', 'You are not a registered delivery person.');
+                    if (state.unsubscribeOrders) state.unsubscribeOrders();
+                    if (state.unsubscribeDeliveryMan) state.unsubscribeDeliveryMan();
+                    if (state.liveTimerInterval) clearInterval(state.liveTimerInterval);
+                    
+                    ui.appContainer.classList.add('hidden');
+                    ui.loginScreen.classList.remove('hidden');
+
+                    const loginErrorMsg = localStorage.getItem('loginError');
+                    if (loginErrorMsg) {
+                        ui.loginError.textContent = loginErrorMsg;
+                        localStorage.removeItem('loginError');
+                    }
                 }
-            } else {
-                if (state.unsubscribeOrders) state.unsubscribeOrders();
-                if (state.unsubscribeDeliveryMan) state.unsubscribeDeliveryMan();
-                if (state.liveTimerInterval) clearInterval(state.liveTimerInterval);
-                
+            } catch(error) {
+                console.error("Authentication check failed:", error);
+                showToast("Authentication failed. Check permissions.", "error");
+                if (auth.currentUser) {
+                    await signOut(auth);
+                }
+                ui.loadingSpinner.classList.add('hidden');
                 ui.appContainer.classList.add('hidden');
                 ui.loginScreen.classList.remove('hidden');
-
-                const loginErrorMsg = localStorage.getItem('loginError');
-                if (loginErrorMsg) {
-                    ui.loginError.textContent = loginErrorMsg;
-                    localStorage.removeItem('loginError');
-                }
             }
         });
 
@@ -318,7 +329,7 @@
         // --- Real-time Data Listening ---
         function listenForDeliveryManUpdates(uid) {
             if (state.unsubscribeDeliveryMan) state.unsubscribeDeliveryMan();
-
+            
             const deliveryManRef = doc(db, 'deliveryMen', uid);
             state.unsubscribeDeliveryMan = onSnapshot(deliveryManRef, (docSnap) => {
                 if (docSnap.exists()) {
@@ -417,7 +428,8 @@
             const itemsHtml = order.items.map(item => `<li class="truncate">${item.name} (x${item.quantity})</li>`).join('');
             const { color, text, bg } = getStatusInfo(order.status);
             const isDelivered = order.status === 'delivered';
-            
+            const createdAtFormatted = formatDateTime(order.createdAt?.toDate());
+
             let timeDetailsHtml = '';
             
             if (order.acceptedAt) {
@@ -464,12 +476,18 @@
 
             return `
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 sm:p-5 border-l-4 ${color} ${bg}">
-                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
-                     <div class="flex items-center gap-3">
-                         <span class="flex items-center justify-center w-8 h-8 ${isDelivered ? 'bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-300' : 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300'} font-bold rounded-full text-sm">${serialNumber}</span>
-                         <p class="font-bold text-lg text-gray-800 dark:text-white">Order #${order.id.slice(0, 6).toUpperCase()}</p>
+                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4">
+                     <div class="flex-grow">
+                        <div class="flex items-center gap-3">
+                            <span class="flex items-center justify-center w-8 h-8 ${isDelivered ? 'bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-300' : 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300'} font-bold rounded-full text-sm">${serialNumber}</span>
+                            <p class="font-bold text-lg text-gray-800 dark:text-white">Order #${order.id.slice(0, 6).toUpperCase()}</p>
+                        </div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-11 flex items-center gap-1.5">
+                           <i data-lucide="calendar-clock" class="w-3.5 h-3.5"></i>
+                           <span>${createdAtFormatted}</span>
+                        </p>
                      </div>
-                     <div class="text-sm">${statusDropdown}</div>
+                     <div class="text-sm mt-1 sm:mt-0 self-start sm:self-center">${statusDropdown}</div>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 text-sm text-gray-700 dark:text-gray-300">
                     <div class="flex items-start gap-3"> <i data-lucide="user-round" class="w-5 h-5 text-gray-400 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Customer</p> <p>${order.userName}</p> <div class="flex items-center gap-2 mt-1"> <p class="text-gray-600 dark:text-gray-400">${order.userMobile}</p> <a href="tel:${order.userMobile}" class="flex items-center justify-center text-green-600 hover:text-green-700 h-8 w-8 rounded-full bg-green-100 hover:bg-green-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-green-400 transition-colors duration-200 transform active:scale-90" title="Call Customer"> <i data-lucide="phone" class="w-4 h-4"></i> <span class="sr-only">Call Customer</span> </a> </div> </div> </div>
@@ -490,20 +508,23 @@
                 return;
             }
             
-            const selectedDate = new Date(selectedDateStr);
-            const startOfDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
-            const endOfDay = new Date(startOfDay);
-            endOfDay.setDate(startOfDay.getDate() + 1);
+            // Use timezone-safe method to get the selected date's components
+            const [year, month, day] = selectedDateStr.split('-').map(Number);
 
             let totalCollection = 0;
             let totalDeliveries = 0;
 
             orders.forEach(order => {
-                if (order.deliveredAt) {
+                if (order.deliveredAt && order.status === 'delivered') {
                     const deliveredDate = order.deliveredAt.toDate();
-                    const deliveredOnSelectedDate = deliveredDate >= startOfDay && deliveredDate < endOfDay;
                     
-                    if (order.status === 'delivered' && deliveredOnSelectedDate) {
+                    // Compare date components directly
+                    const deliveredOnSelectedDate = 
+                        deliveredDate.getFullYear() === year &&
+                        (deliveredDate.getMonth() + 1) === month && // JS month is 0-indexed
+                        deliveredDate.getDate() === day;
+
+                    if (deliveredOnSelectedDate) {
                         totalDeliveries++;
                         if (order.paymentMethod?.toLowerCase() === 'cash on delivery') {
                             totalCollection += (order.totalAmount || 0);
@@ -551,13 +572,16 @@
             calculateDailyStats(state.allOrders);
 
             setTimeout(() => {
-                if (icon) {
-                    icon.classList.remove('animate-spin');
+                // Query for the icon again, as it might have been re-rendered
+                const currentIcon = ui.refreshButton.querySelector('svg');
+                if (currentIcon) {
+                    currentIcon.classList.remove('animate-spin');
                 }
                 ui.refreshButton.disabled = false;
                 showToast("Order list refreshed!");
             }, 700);
         });
+
 
         document.addEventListener('change', async (e) => {
             if (e.target.classList.contains('status-change-delivery')) {
@@ -696,6 +720,14 @@
 
         function hideModal(modal) {
             modal.classList.add('modal-hidden');
+        }
+
+        function formatDateTime(date) {
+            if (!date || !(date instanceof Date)) return 'N/A';
+            return date.toLocaleString('en-US', {
+                month: 'short', day: 'numeric',
+                hour: '2-digit', minute: '2-digit', hour12: true
+            });
         }
         
         function formatTime(date) {
