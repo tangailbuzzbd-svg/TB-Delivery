@@ -210,6 +210,24 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
 
+        // --- Local Storage Helpers ---
+        const getFromStorage = (key, defaultValue = {}) => {
+            try {
+                const item = localStorage.getItem(key);
+                return item ? JSON.parse(item) : defaultValue;
+            } catch (error) {
+                console.error(`Error reading from localStorage for key "${key}":`, error);
+                return defaultValue;
+            }
+        };
+        const saveToStorage = (key, value) => {
+            try {
+                localStorage.setItem(key, JSON.stringify(value));
+            } catch (error) {
+                console.error(`Error writing to localStorage for key "${key}":`, error);
+            }
+        };
+
         // --- UI Elements & State ---
         const ui = {
             loadingSpinner: document.getElementById('loading-spinner'),
@@ -336,7 +354,6 @@
                     state.currentUserData = docSnap.data();
                     ui.deliveryManName.textContent = state.currentUserData.name || "Delivery Staff";
                     
-                    // If profile modal is open, refresh its content
                     if (!ui.profileModal.classList.contains('modal-hidden')) {
                         showProfileModal();
                     }
@@ -430,22 +447,30 @@
             const isDelivered = order.status === 'delivered';
             const createdAtFormatted = formatDateTime(order.createdAt?.toDate());
 
+            const acceptanceTimes = getFromStorage('orderAcceptanceTimes');
+            const deliveryTimestamps = getFromStorage('deliveryTimestamps');
+            const totalDeliveryTimes = getFromStorage('totalDeliveryTimes');
+
+            const acceptedAt = acceptanceTimes[order.id];
+            const deliveredAt = deliveryTimestamps[order.id];
+            const totalDuration = totalDeliveryTimes[order.id];
+
             let timeDetailsHtml = '';
             
-            if (order.acceptedAt) {
-                 timeDetailsHtml += `<div class="flex items-start gap-3"> <i data-lucide="play-circle" class="w-5 h-5 text-gray-400 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Accepted at</p> <p>${formatTime(order.acceptedAt.toDate())}</p> </div> </div>`;
+            if (acceptedAt) {
+                 timeDetailsHtml += `<div class="flex items-start gap-3"> <i data-lucide="play-circle" class="w-5 h-5 text-gray-400 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Accepted at</p> <p>${formatTime(new Date(acceptedAt))}</p> </div> </div>`;
             }
 
-            if (order.status === 'out-for-delivery' && order.outForDeliveryAt) {
+            if (order.status === 'out-for-delivery') {
                 timeDetailsHtml += `<div class="flex items-start gap-3"> <i data-lucide="timer" class="w-5 h-5 text-orange-500 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Time Elapsed</p> <p id="timer-${order.id}" class="font-mono">...</p> </div> </div>`;
             }
             
-            if (order.deliveredAt) {
-                 timeDetailsHtml += `<div class="flex items-start gap-3"> <i data-lucide="flag" class="w-5 h-5 text-gray-400 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Delivered at</p> <p>${formatTime(order.deliveredAt.toDate())}</p> </div> </div>`;
+            if (deliveredAt) {
+                 timeDetailsHtml += `<div class="flex items-start gap-3"> <i data-lucide="flag" class="w-5 h-5 text-gray-400 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Delivered at</p> <p>${formatTime(new Date(deliveredAt))}</p> </div> </div>`;
             }
 
-            if (typeof order.totalDeliveryDurationMinutes === 'number') {
-                 timeDetailsHtml += `<div class="flex items-start gap-3"> <i data-lucide="award" class="w-5 h-5 text-blue-500 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Total Time Taken</p> <p>${order.totalDeliveryDurationMinutes} minutes</p> </div> </div>`;
+            if (typeof totalDuration === 'number') {
+                 timeDetailsHtml += `<div class="flex items-start gap-3"> <i data-lucide="award" class="w-5 h-5 text-blue-500 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Total Time Taken</p> <p>${totalDuration} minutes</p> </div> </div>`;
             }
             
             const selectableOptions = ['out-for-delivery', 'delivered'];
@@ -508,20 +533,21 @@
                 return;
             }
             
-            // Use timezone-safe method to get the selected date's components
             const [year, month, day] = selectedDateStr.split('-').map(Number);
+            const deliveryTimestamps = getFromStorage('deliveryTimestamps');
 
             let totalCollection = 0;
             let totalDeliveries = 0;
 
             orders.forEach(order => {
-                if (order.deliveredAt && order.status === 'delivered') {
-                    const deliveredDate = order.deliveredAt.toDate();
+                const deliveredAtTimestamp = deliveryTimestamps[order.id];
+                
+                if (order.status === 'delivered' && deliveredAtTimestamp) {
+                    const deliveredDate = new Date(deliveredAtTimestamp);
                     
-                    // Compare date components directly
                     const deliveredOnSelectedDate = 
                         deliveredDate.getFullYear() === year &&
-                        (deliveredDate.getMonth() + 1) === month && // JS month is 0-indexed
+                        (deliveredDate.getMonth() + 1) === month &&
                         deliveredDate.getDate() === day;
 
                     if (deliveredOnSelectedDate) {
@@ -539,17 +565,17 @@
 
         function startLiveTimers() {
             if (state.liveTimerInterval) clearInterval(state.liveTimerInterval);
+            
+            const deliveryStartTimes = getFromStorage('deliveryStartTimes');
 
             state.liveTimerInterval = setInterval(() => {
-                state.allOrders.forEach(order => {
-                    if (order.status === 'out-for-delivery' && order.outForDeliveryAt) {
-                        const timerEl = document.getElementById(`timer-${order.id}`);
-                        if (timerEl) {
-                            const elapsed = new Date().getTime() - order.outForDeliveryAt.toDate().getTime();
-                            const minutes = Math.floor(elapsed / 60000);
-                            const seconds = Math.floor((elapsed % 60000) / 1000);
-                            timerEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-                        }
+                Object.keys(deliveryStartTimes).forEach(orderId => {
+                    const timerEl = document.getElementById(`timer-${orderId}`);
+                    if (timerEl) {
+                        const elapsed = new Date().getTime() - deliveryStartTimes[orderId];
+                        const minutes = Math.floor(elapsed / 60000);
+                        const seconds = Math.floor((elapsed % 60000) / 1000);
+                        timerEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
                     }
                 });
             }, 1000);
@@ -567,12 +593,10 @@
             }
             ui.refreshButton.disabled = true;
 
-            // Re-run the render and calculation functions with the current state data
             renderOrders(state.allOrders);
             calculateDailyStats(state.allOrders);
 
             setTimeout(() => {
-                // Query for the icon again, as it might have been re-rendered
                 const currentIcon = ui.refreshButton.querySelector('svg');
                 if (currentIcon) {
                     currentIcon.classList.remove('animate-spin');
@@ -582,32 +606,42 @@
             }, 700);
         });
 
-
         document.addEventListener('change', async (e) => {
             if (e.target.classList.contains('status-change-delivery')) {
                 const orderId = e.target.dataset.id;
                 const newStatus = e.target.value;
-                const orderRef = doc(db, 'orders', orderId);
-                let updatePayload = { status: newStatus };
+                
+                const deliveryStartTimes = getFromStorage('deliveryStartTimes');
+                const deliveryTimestamps = getFromStorage('deliveryTimestamps');
+                const acceptanceTimes = getFromStorage('orderAcceptanceTimes');
+                const totalDeliveryTimes = getFromStorage('totalDeliveryTimes');
 
-                try {
-                    if (newStatus === 'out-for-delivery') {
-                        updatePayload.outForDeliveryAt = new Date();
-                    } else if (newStatus === 'delivered') {
-                        const orderSnap = await getDoc(orderRef);
-                        const orderData = orderSnap.data();
-                        
-                        const startTime = orderData.acceptedAt?.toDate() || orderData.createdAt?.toDate();
-                        const deliveredAtTime = new Date();
-                        updatePayload.deliveredAt = deliveredAtTime;
+                if (newStatus === 'out-for-delivery') {
+                    if (!deliveryStartTimes[orderId]) {
+                        deliveryStartTimes[orderId] = new Date().getTime();
+                    }
+                } else if (newStatus === 'delivered') {
+                    const deliveredAtTime = new Date().getTime();
+                    deliveryTimestamps[orderId] = deliveredAtTime;
 
-                        if (startTime) {
-                             const totalDurationInMinutes = Math.round((deliveredAtTime - startTime) / 60000);
-                             updatePayload.totalDeliveryDurationMinutes = totalDurationInMinutes;
-                        }
+                    if (deliveryStartTimes[orderId]) {
+                        delete deliveryStartTimes[orderId]; 
                     }
 
-                    await updateDoc(orderRef, updatePayload);
+                    const acceptedAtTime = acceptanceTimes[orderId];
+                    if (acceptedAtTime) {
+                        const totalDurationInMinutes = Math.round((deliveredAtTime - acceptedAtTime) / 60000);
+                        totalDeliveryTimes[orderId] = totalDurationInMinutes;
+                    }
+                }
+
+                saveToStorage('deliveryStartTimes', deliveryStartTimes);
+                saveToStorage('deliveryTimestamps', deliveryTimestamps);
+                saveToStorage('totalDeliveryTimes', totalDeliveryTimes);
+
+                try {
+                    const orderRef = doc(db, 'orders', orderId);
+                    await updateDoc(orderRef, { status: newStatus });
                     showToast(`Order status updated.`);
                 } catch(error) {
                     console.error("Failed to update order status:", error);
@@ -641,18 +675,17 @@
             playNotificationSound();
         }
         
-        ui.acceptOrderBtn.addEventListener('click', async (e) => {
+        ui.acceptOrderBtn.addEventListener('click', (e) => {
             const orderId = e.currentTarget.dataset.orderId;
             if (!orderId) return;
 
-            try {
-                await updateDoc(doc(db, 'orders', orderId), { acceptedAt: new Date() });
-                showToast("Order accepted!", "success");
-            } catch (error) {
-                console.error("Failed to accept order:", error);
-                showToast("Could not accept order.", "error");
-            }
+            const acceptanceTimes = getFromStorage('orderAcceptanceTimes');
+            acceptanceTimes[orderId] = new Date().getTime();
+            saveToStorage('orderAcceptanceTimes', acceptanceTimes);
             
+            showToast("Order accepted!", "success");
+            renderOrders(state.allOrders);
+
             hideModal(ui.newOrderModal);
             setTimeout(showNextOrderInQueue, 300); 
         });
