@@ -7,6 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -34,13 +36,18 @@
             opacity: 0;
             transform: scale(0.95) translateY(20px);
         }
-        /* Style for date picker icon */
-        input[type="date"]::-webkit-calendar-picker-indicator {
-            cursor: pointer;
-            filter: invert(0.5);
+        /* Tab styles */
+        .tab-active {
+            background-color: #3b82f6; /* bg-blue-600 */
+            color: white;
         }
-        .dark input[type="date"]::-webkit-calendar-picker-indicator {
-            filter: invert(1);
+        /* Custom Flatpickr styles */
+        .flatpickr-input {
+            cursor: pointer;
+            background-color: #f3f4f6; /* bg-gray-100 */
+        }
+        .dark .flatpickr-input {
+             background-color: #374151; /* dark:bg-gray-700 */
         }
     </style>
 </head>
@@ -93,8 +100,8 @@
             <div id="dashboard-content">
                  <div class="mb-6 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm text-center">
                     <div class="flex flex-col sm:flex-row justify-center items-center gap-2 mb-2">
-                       <label for="collection-date" class="text-sm font-medium text-gray-700 dark:text-gray-300">Stats for:</label>
-                       <input type="date" id="collection-date" class="bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md p-1.5 text-sm text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                       <label for="collection-date" class="text-sm font-medium text-gray-700 dark:text-gray-300">Stats & History for:</label>
+                       <input type="text" id="collection-date" placeholder="Select a date..." class="border border-gray-300 dark:border-gray-600 rounded-md p-1.5 text-sm text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     </div>
                      <div class="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x dark:divide-gray-700 mt-2">
                         <div class="p-2">
@@ -107,15 +114,18 @@
                         </div>
                     </div>
                  </div>
-                
-                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200">Your Assigned Orders</h2>
-                    <button id="refresh-button" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200 disabled:opacity-50" title="Refresh Orders">
-                        <i data-lucide="refresh-cw" class="w-5 h-5 text-gray-600 dark:text-gray-400"></i>
-                    </button>
+                 
+                 <!-- Tabs -->
+                <div class="mb-4 flex justify-center p-1 bg-gray-200 dark:bg-gray-800 rounded-lg">
+                    <button id="current-orders-tab" class="w-full py-2 px-4 text-sm font-semibold rounded-md transition-colors duration-300 tab-active">Current Orders</button>
+                    <button id="history-tab" class="w-full py-2 px-4 text-sm font-semibold text-gray-600 dark:text-gray-300 rounded-md transition-colors duration-300">Delivery History</button>
                 </div>
+
                 <div id="order-list" class="space-y-4">
-                    <!-- Orders will be dynamically inserted here -->
+                    <!-- Current orders will be dynamically inserted here -->
+                </div>
+                <div id="history-list" class="hidden space-y-4">
+                    <!-- History orders will be dynamically inserted here -->
                 </div>
             </div>
         </main>
@@ -210,24 +220,6 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
 
-        // --- Local Storage Helpers ---
-        const getFromStorage = (key, defaultValue = {}) => {
-            try {
-                const item = localStorage.getItem(key);
-                return item ? JSON.parse(item) : defaultValue;
-            } catch (error) {
-                console.error(`Error reading from localStorage for key "${key}":`, error);
-                return defaultValue;
-            }
-        };
-        const saveToStorage = (key, value) => {
-            try {
-                localStorage.setItem(key, JSON.stringify(value));
-            } catch (error) {
-                console.error(`Error writing to localStorage for key "${key}":`, error);
-            }
-        };
-
         // --- UI Elements & State ---
         const ui = {
             loadingSpinner: document.getElementById('loading-spinner'),
@@ -237,8 +229,10 @@
             appContainer: document.getElementById('app-container'),
             deliveryManName: document.getElementById('delivery-man-name'),
             orderList: document.getElementById('order-list'),
+            historyList: document.getElementById('history-list'),
+            currentOrdersTab: document.getElementById('current-orders-tab'),
+            historyTab: document.getElementById('history-tab'),
             profileButton: document.getElementById('profile-button'),
-            refreshButton: document.getElementById('refresh-button'),
             totalCollection: document.getElementById('total-collection-info'),
             totalDeliveries: document.getElementById('total-deliveries-info'),
             collectionDate: document.getElementById('collection-date'),
@@ -269,16 +263,6 @@
             currentUserData: null,
         };
         
-        // --- Initialization ---
-        function setInitialDate() {
-            const today = new Date();
-            const year = today.getFullYear();
-            const month = String(today.getMonth() + 1).padStart(2, '0');
-            const day = String(today.getDate()).padStart(2, '0');
-            ui.collectionDate.value = `${year}-${month}-${day}`;
-        }
-        setInitialDate();
-
         // --- Authentication ---
         onAuthStateChanged(auth, async (user) => {
             try {
@@ -339,10 +323,25 @@
         function initializeDashboard(user, deliveryManData) {
             state.currentUserData = deliveryManData;
             ui.deliveryManName.textContent = deliveryManData.name || "Delivery Staff";
+            initializeDatePicker();
             listenForAssignedOrders(user.uid);
             listenForDeliveryManUpdates(user.uid);
             lucide.createIcons();
         }
+        
+        function initializeDatePicker() {
+            flatpickr(ui.collectionDate, {
+                dateFormat: "Y-m-d", // Machine-readable value
+                defaultDate: "today",
+                altInput: true,      // Create a separate, visible input
+                altFormat: "d-m-Y",  // Format for the visible input
+                onChange: function(selectedDates, dateStr, instance) {
+                    calculateDailyStats(state.allOrders);
+                    renderAllViews(state.allOrders);
+                },
+            });
+        }
+
 
         // --- Real-time Data Listening ---
         function listenForDeliveryManUpdates(uid) {
@@ -390,7 +389,7 @@
                     });
                 }
                 
-                renderOrders(state.allOrders);
+                renderAllViews(state.allOrders);
                 calculateDailyStats(state.allOrders);
 
                 if (newOrders.length > 0) {
@@ -403,17 +402,7 @@
         }
         
         // --- UI Rendering ---
-        function renderOrders(orders) {
-            ui.orderList.innerHTML = '';
-            if (orders.length === 0) {
-                ui.orderList.innerHTML = '<div class="text-center p-8 bg-white dark:bg-gray-800 rounded-lg shadow-md"><p class="text-gray-500 dark:text-gray-400">No orders assigned.</p></div>';
-                return;
-            }
-
-            const deliveredOrders = orders
-                .filter(o => o.status === 'delivered')
-                .sort((a, b) => (a.deliveredAt?.toMillis() || 0) - (b.deliveredAt?.toMillis() || 0));
-
+        function renderAllViews(orders) {
             const pendingOrders = orders
                 .filter(o => o.status !== 'delivered')
                 .sort((a, b) => {
@@ -425,18 +414,42 @@
                     const dateB = b.createdAt?.toDate() || new Date(0);
                     return dateB - dateA;
                 });
-            
-            const sortedOrders = [...pendingOrders, ...deliveredOrders];
-            
-            const deliveredSerials = {};
-            deliveredOrders.forEach((order, index) => {
-                deliveredSerials[order.id] = index + 1;
-            });
 
-            sortedOrders.forEach((order) => {
-                const serialNumber = deliveredSerials[order.id] || '-';
-                ui.orderList.insertAdjacentHTML('beforeend', createOrderCard(order, serialNumber));
-            });
+            const selectedDateStr = ui.collectionDate.value;
+            const [year, month, day] = selectedDateStr.split('-').map(Number);
+            
+            const deliveredOrders = orders
+                .filter(o => {
+                    if (o.status === 'delivered' && o.deliveredAt) {
+                         const deliveredDate = o.deliveredAt.toDate();
+                         return deliveredDate.getFullYear() === year &&
+                                (deliveredDate.getMonth() + 1) === month &&
+                                deliveredDate.getDate() === day;
+                    }
+                    return false;
+                })
+                .sort((a, b) => (b.deliveredAt?.toMillis() || 0) - (a.deliveredAt?.toMillis() || 0));
+
+            // Render Current Orders
+            ui.orderList.innerHTML = '';
+            if (pendingOrders.length === 0) {
+                 ui.orderList.innerHTML = '<div class="text-center p-8 bg-white dark:bg-gray-800 rounded-lg shadow-md"><p class="text-gray-500 dark:text-gray-400">No pending orders.</p></div>';
+            } else {
+                pendingOrders.forEach((order) => {
+                    ui.orderList.insertAdjacentHTML('beforeend', createOrderCard(order, '-'));
+                });
+            }
+
+            // Render History
+            ui.historyList.innerHTML = '';
+            if (deliveredOrders.length === 0) {
+                 ui.historyList.innerHTML = `<div class="text-center p-8 bg-white dark:bg-gray-800 rounded-lg shadow-md"><p class="text-gray-500 dark:text-gray-400">No deliveries found for ${new Date(year, month - 1, day).toLocaleDateString('en-US',{month:'long', day:'numeric', year:'numeric'})}.</p></div>`;
+            } else {
+                 deliveredOrders.forEach((order, index) => {
+                    ui.historyList.insertAdjacentHTML('beforeend', createHistoryCard(order, index + 1));
+                });
+            }
+
             lucide.createIcons();
             startLiveTimers();
         }
@@ -447,35 +460,27 @@
             const isDelivered = order.status === 'delivered';
             const createdAtFormatted = formatDateTime(order.createdAt?.toDate());
 
-            const acceptanceTimes = getFromStorage('orderAcceptanceTimes');
-            const deliveryTimestamps = getFromStorage('deliveryTimestamps');
-            const totalDeliveryTimes = getFromStorage('totalDeliveryTimes');
-
-            const acceptedAt = acceptanceTimes[order.id];
-            const deliveredAt = deliveryTimestamps[order.id];
-            const totalDuration = totalDeliveryTimes[order.id];
-
             let timeDetailsHtml = '';
             
-            if (acceptedAt) {
-                 timeDetailsHtml += `<div class="flex items-start gap-3"> <i data-lucide="play-circle" class="w-5 h-5 text-gray-400 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Accepted at</p> <p>${formatTime(new Date(acceptedAt))}</p> </div> </div>`;
+            if (order.acceptedAt) {
+                 timeDetailsHtml += `<div class="flex items-start gap-3"> <i data-lucide="play-circle" class="w-5 h-5 text-gray-400 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Accepted at</p> <p>${formatTime(order.acceptedAt.toDate())}</p> </div> </div>`;
             }
 
-            if (order.status === 'out-for-delivery') {
+            if (order.status === 'out-for-delivery' && order.outForDeliveryAt) {
                 timeDetailsHtml += `<div class="flex items-start gap-3"> <i data-lucide="timer" class="w-5 h-5 text-orange-500 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Time Elapsed</p> <p id="timer-${order.id}" class="font-mono">...</p> </div> </div>`;
             }
             
-            if (deliveredAt) {
-                 timeDetailsHtml += `<div class="flex items-start gap-3"> <i data-lucide="flag" class="w-5 h-5 text-gray-400 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Delivered at</p> <p>${formatTime(new Date(deliveredAt))}</p> </div> </div>`;
+            if (order.deliveredAt) {
+                 timeDetailsHtml += `<div class="flex items-start gap-3"> <i data-lucide="flag" class="w-5 h-5 text-gray-400 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Delivered at</p> <p>${formatTime(order.deliveredAt.toDate())}</p> </div> </div>`;
             }
 
-            if (typeof totalDuration === 'number') {
-                 timeDetailsHtml += `<div class="flex items-start gap-3"> <i data-lucide="award" class="w-5 h-5 text-blue-500 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Total Time Taken</p> <p>${totalDuration} minutes</p> </div> </div>`;
+            if (typeof order.totalDeliveryDurationMinutes === 'number') {
+                 timeDetailsHtml += `<div class="flex items-start gap-3"> <i data-lucide="award" class="w-5 h-5 text-blue-500 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Total Time Taken</p> <p>${order.totalDeliveryDurationMinutes} minutes</p> </div> </div>`;
             }
             
             const selectableOptions = ['out-for-delivery', 'delivered'];
             let allOptions = [...selectableOptions];
-            if (!allOptions.includes(order.status) && !isDelivered) {
+            if (!allOptions.includes(order.status)) {
                 allOptions.unshift(order.status);
             }
 
@@ -523,6 +528,39 @@
                 </div>
             </div>`;
         }
+        
+        function createHistoryCard(order, serialNumber) {
+            const itemsHtml = order.items.map(item => `<li class="truncate">${item.name} (x${item.quantity})</li>`).join('');
+
+            return `
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 sm:p-5 border-l-4 border-gray-400">
+                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4">
+                     <div class="flex-grow">
+                        <div class="flex items-center gap-3">
+                            <span class="flex items-center justify-center w-8 h-8 bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-300 font-bold rounded-full text-sm">
+                                ${serialNumber}
+                            </span>
+                            <p class="font-bold text-lg text-gray-800 dark:text-white">Order #${order.id.slice(0, 6).toUpperCase()}</p>
+                        </div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-11 flex items-center gap-1.5">
+                           <i data-lucide="calendar-check" class="w-3.5 h-3.5"></i>
+                           <span>Delivered at ${formatTime(order.deliveredAt?.toDate())}</span>
+                        </p>
+                     </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5 text-sm text-gray-700 dark:text-gray-300">
+                    <div class="flex items-start gap-3"> <i data-lucide="user-round" class="w-5 h-5 text-gray-400 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Customer</p> <p>${order.userName}</p></div> </div>
+                    <div class="flex items-start gap-3"> <i data-lucide="map-pin" class="w-5 h-5 text-gray-400 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Address</p> <p class="break-words">${order.userLocation}</p></div> </div>
+                    <div class="flex items-start gap-3"> <i data-lucide="shopping-basket" class="w-5 h-5 text-gray-400 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Items</p> <ul class="list-disc list-inside space-y-1 mt-1 text-gray-600 dark:text-gray-400">${itemsHtml}</ul> </div> </div>
+                    ${ typeof order.totalDeliveryDurationMinutes === 'number' ? `
+                    <div class="flex items-start gap-3"> <i data-lucide="timer" class="w-5 h-5 text-gray-400 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">Time Taken</p> <p>${order.totalDeliveryDurationMinutes} minutes</p> </div> </div>
+                    ` : ''}
+                    ${ order.paymentMethod?.toLowerCase() === 'cash on delivery' ? `
+                    <div class="flex items-start gap-3"> <i data-lucide="wallet" class="w-5 h-5 text-green-500 mt-1 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200">COD Collected</p> <p class="font-bold text-lg text-green-600 dark:text-green-400 mt-1">৳${order.totalAmount}</p> </div> </div>
+                    ` : ''}
+                </div>
+            </div>`;
+        }
 
         // --- Business Logic ---
         function calculateDailyStats(orders) {
@@ -533,24 +571,17 @@
                 return;
             }
             
-            const [year, month, day] = selectedDateStr.split('-').map(Number);
-            const deliveryTimestamps = getFromStorage('deliveryTimestamps');
-
+            const startOfDay = new Date(selectedDateStr + 'T00:00:00');
+            const endOfDay = new Date(startOfDay);
+            endOfDay.setDate(startOfDay.getDate() + 1);
+            
             let totalCollection = 0;
             let totalDeliveries = 0;
 
             orders.forEach(order => {
-                const deliveredAtTimestamp = deliveryTimestamps[order.id];
-                
-                if (order.status === 'delivered' && deliveredAtTimestamp) {
-                    const deliveredDate = new Date(deliveredAtTimestamp);
-                    
-                    const deliveredOnSelectedDate = 
-                        deliveredDate.getFullYear() === year &&
-                        (deliveredDate.getMonth() + 1) === month &&
-                        deliveredDate.getDate() === day;
-
-                    if (deliveredOnSelectedDate) {
+                if (order.deliveredAt && order.status === 'delivered') {
+                    const deliveredDate = order.deliveredAt.toDate();
+                    if (deliveredDate >= startOfDay && deliveredDate < endOfDay) {
                         totalDeliveries++;
                         if (order.paymentMethod?.toLowerCase() === 'cash on delivery') {
                             totalCollection += (order.totalAmount || 0);
@@ -566,16 +597,16 @@
         function startLiveTimers() {
             if (state.liveTimerInterval) clearInterval(state.liveTimerInterval);
             
-            const deliveryStartTimes = getFromStorage('deliveryStartTimes');
-
             state.liveTimerInterval = setInterval(() => {
-                Object.keys(deliveryStartTimes).forEach(orderId => {
-                    const timerEl = document.getElementById(`timer-${orderId}`);
-                    if (timerEl) {
-                        const elapsed = new Date().getTime() - deliveryStartTimes[orderId];
-                        const minutes = Math.floor(elapsed / 60000);
-                        const seconds = Math.floor((elapsed % 60000) / 1000);
-                        timerEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                state.allOrders.forEach(order => {
+                    if (order.status === 'out-for-delivery' && order.outForDeliveryAt) {
+                         const timerEl = document.getElementById(`timer-${order.id}`);
+                         if (timerEl) {
+                            const elapsed = new Date().getTime() - order.outForDeliveryAt.toDate().getTime();
+                            const minutes = Math.floor(elapsed / 60000);
+                            const seconds = Math.floor((elapsed % 60000) / 1000);
+                            timerEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                        }
                     }
                 });
             }, 1000);
@@ -584,64 +615,52 @@
         // --- Event Listeners & Actions ---
         ui.collectionDate.addEventListener('change', () => {
             calculateDailyStats(state.allOrders);
+            renderAllViews(state.allOrders);
+        });
+
+        ui.currentOrdersTab.addEventListener('click', () => {
+            ui.currentOrdersTab.classList.add('tab-active');
+            ui.currentOrdersTab.classList.remove('text-gray-600', 'dark:text-gray-300');
+            ui.historyTab.classList.remove('tab-active');
+            ui.historyTab.classList.add('text-gray-600', 'dark:text-gray-300');
+            ui.orderList.classList.remove('hidden');
+            ui.historyList.classList.add('hidden');
+        });
+
+        ui.historyTab.addEventListener('click', () => {
+            ui.historyTab.classList.add('tab-active');
+            ui.historyTab.classList.remove('text-gray-600', 'dark:text-gray-300');
+            ui.currentOrdersTab.classList.remove('tab-active');
+            ui.currentOrdersTab.classList.add('text-gray-600', 'dark:text-gray-300');
+            ui.historyList.classList.remove('hidden');
+            ui.orderList.classList.add('hidden');
         });
         
-        ui.refreshButton.addEventListener('click', () => {
-            const icon = ui.refreshButton.querySelector('svg');
-            if (icon) {
-                icon.classList.add('animate-spin');
-            }
-            ui.refreshButton.disabled = true;
-
-            renderOrders(state.allOrders);
-            calculateDailyStats(state.allOrders);
-
-            setTimeout(() => {
-                const currentIcon = ui.refreshButton.querySelector('svg');
-                if (currentIcon) {
-                    currentIcon.classList.remove('animate-spin');
-                }
-                ui.refreshButton.disabled = false;
-                showToast("Order list refreshed!");
-            }, 700);
-        });
-
         document.addEventListener('change', async (e) => {
             if (e.target.classList.contains('status-change-delivery')) {
                 const orderId = e.target.dataset.id;
                 const newStatus = e.target.value;
-                
-                const deliveryStartTimes = getFromStorage('deliveryStartTimes');
-                const deliveryTimestamps = getFromStorage('deliveryTimestamps');
-                const acceptanceTimes = getFromStorage('orderAcceptanceTimes');
-                const totalDeliveryTimes = getFromStorage('totalDeliveryTimes');
-
-                if (newStatus === 'out-for-delivery') {
-                    if (!deliveryStartTimes[orderId]) {
-                        deliveryStartTimes[orderId] = new Date().getTime();
-                    }
-                } else if (newStatus === 'delivered') {
-                    const deliveredAtTime = new Date().getTime();
-                    deliveryTimestamps[orderId] = deliveredAtTime;
-
-                    if (deliveryStartTimes[orderId]) {
-                        delete deliveryStartTimes[orderId]; 
-                    }
-
-                    const acceptedAtTime = acceptanceTimes[orderId];
-                    if (acceptedAtTime) {
-                        const totalDurationInMinutes = Math.round((deliveredAtTime - acceptedAtTime) / 60000);
-                        totalDeliveryTimes[orderId] = totalDurationInMinutes;
-                    }
-                }
-
-                saveToStorage('deliveryStartTimes', deliveryStartTimes);
-                saveToStorage('deliveryTimestamps', deliveryTimestamps);
-                saveToStorage('totalDeliveryTimes', totalDeliveryTimes);
+                const orderRef = doc(db, 'orders', orderId);
+                let updatePayload = { status: newStatus };
 
                 try {
-                    const orderRef = doc(db, 'orders', orderId);
-                    await updateDoc(orderRef, { status: newStatus });
+                    if (newStatus === 'out-for-delivery') {
+                        updatePayload.outForDeliveryAt = new Date();
+                    } else if (newStatus === 'delivered') {
+                        const orderSnap = await getDoc(orderRef);
+                        const orderData = orderSnap.data();
+                        
+                        const startTime = orderData.acceptedAt?.toDate() || orderData.createdAt?.toDate();
+                        const deliveredAtTime = new Date();
+                        updatePayload.deliveredAt = deliveredAtTime;
+
+                        if (startTime) {
+                             const totalDurationInMinutes = Math.round((deliveredAtTime - startTime) / 60000);
+                             updatePayload.totalDeliveryDurationMinutes = totalDurationInMinutes;
+                        }
+                    }
+
+                    await updateDoc(orderRef, updatePayload);
                     showToast(`Order status updated.`);
                 } catch(error) {
                     console.error("Failed to update order status:", error);
@@ -675,17 +694,18 @@
             playNotificationSound();
         }
         
-        ui.acceptOrderBtn.addEventListener('click', (e) => {
+        ui.acceptOrderBtn.addEventListener('click', async (e) => {
             const orderId = e.currentTarget.dataset.orderId;
             if (!orderId) return;
 
-            const acceptanceTimes = getFromStorage('orderAcceptanceTimes');
-            acceptanceTimes[orderId] = new Date().getTime();
-            saveToStorage('orderAcceptanceTimes', acceptanceTimes);
+            try {
+                await updateDoc(doc(db, 'orders', orderId), { acceptedAt: new Date() });
+                showToast("Order accepted!", "success");
+            } catch (error) {
+                console.error("Failed to accept order:", error);
+                showToast("Could not accept order.", "error");
+            }
             
-            showToast("Order accepted!", "success");
-            renderOrders(state.allOrders);
-
             hideModal(ui.newOrderModal);
             setTimeout(showNextOrderInQueue, 300); 
         });
