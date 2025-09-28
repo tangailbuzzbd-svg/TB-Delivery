@@ -115,7 +115,14 @@
                     </div>
                  </div>
                  
-                 <!-- Tabs -->
+                 <div class="flex justify-between items-center mb-4">
+                    <h2 id="view-title" class="text-xl font-semibold text-gray-800 dark:text-gray-200">Current Orders</h2>
+                    <button id="refresh-button" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200 disabled:opacity-50" title="Refresh View">
+                        <i data-lucide="refresh-cw" class="w-5 h-5 text-gray-600 dark:text-gray-400"></i>
+                    </button>
+                </div>
+
+                <!-- Tabs -->
                 <div class="mb-4 flex justify-center p-1 bg-gray-200 dark:bg-gray-800 rounded-lg">
                     <button id="current-orders-tab" class="w-full py-2 px-4 text-sm font-semibold rounded-md transition-colors duration-300 tab-active">Current Orders</button>
                     <button id="history-tab" class="w-full py-2 px-4 text-sm font-semibold text-gray-600 dark:text-gray-300 rounded-md transition-colors duration-300">Delivery History</button>
@@ -233,6 +240,8 @@
             currentOrdersTab: document.getElementById('current-orders-tab'),
             historyTab: document.getElementById('history-tab'),
             profileButton: document.getElementById('profile-button'),
+            refreshButton: document.getElementById('refresh-button'),
+            viewTitle: document.getElementById('view-title'),
             totalCollection: document.getElementById('total-collection-info'),
             totalDeliveries: document.getElementById('total-deliveries-info'),
             collectionDate: document.getElementById('collection-date'),
@@ -510,7 +519,7 @@
                      <div class="flex-grow">
                         <div class="flex items-center gap-3">
                             <span class="flex items-center justify-center w-8 h-8 ${isDelivered ? 'bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-300' : 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300'} font-bold rounded-full text-sm">${serialNumber}</span>
-                            <p class="font-bold text-lg text-gray-800 dark:text-white">Order #${order.id.slice(0, 6).toUpperCase()}</p>
+                            <p class="font-bold text-lg text-gray-800 dark:text-white">Order #${order.orderId || order.id.slice(0, 6).toUpperCase()}</p>
                         </div>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-11 flex items-center gap-1.5">
                            <i data-lucide="calendar-clock" class="w-3.5 h-3.5"></i>
@@ -540,7 +549,7 @@
                             <span class="flex items-center justify-center w-8 h-8 bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-300 font-bold rounded-full text-sm">
                                 ${serialNumber}
                             </span>
-                            <p class="font-bold text-lg text-gray-800 dark:text-white">Order #${order.id.slice(0, 6).toUpperCase()}</p>
+                            <p class="font-bold text-lg text-gray-800 dark:text-white">Order #${order.orderId || order.id.slice(0, 6).toUpperCase()}</p>
                         </div>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-11 flex items-center gap-1.5">
                            <i data-lucide="calendar-check" class="w-3.5 h-3.5"></i>
@@ -613,11 +622,6 @@
         }
 
         // --- Event Listeners & Actions ---
-        ui.collectionDate.addEventListener('change', () => {
-            calculateDailyStats(state.allOrders);
-            renderAllViews(state.allOrders);
-        });
-
         ui.currentOrdersTab.addEventListener('click', () => {
             ui.currentOrdersTab.classList.add('tab-active');
             ui.currentOrdersTab.classList.remove('text-gray-600', 'dark:text-gray-300');
@@ -625,6 +629,7 @@
             ui.historyTab.classList.add('text-gray-600', 'dark:text-gray-300');
             ui.orderList.classList.remove('hidden');
             ui.historyList.classList.add('hidden');
+            ui.viewTitle.textContent = "Current Orders";
         });
 
         ui.historyTab.addEventListener('click', () => {
@@ -634,6 +639,32 @@
             ui.currentOrdersTab.classList.add('text-gray-600', 'dark:text-gray-300');
             ui.historyList.classList.remove('hidden');
             ui.orderList.classList.add('hidden');
+            ui.viewTitle.textContent = "Delivery History";
+        });
+
+        ui.refreshButton.addEventListener('click', () => {
+            const icon = ui.refreshButton.querySelector('svg');
+            if (icon) {
+                icon.classList.add('animate-spin');
+            }
+            ui.refreshButton.disabled = true;
+
+            // Reset to default view (Current Orders)
+            if (ui.historyList.classList.contains('hidden')) {
+                 ui.currentOrdersTab.click();
+            }
+           
+            renderAllViews(state.allOrders);
+            calculateDailyStats(state.allOrders);
+
+            setTimeout(() => {
+                const currentIcon = ui.refreshButton.querySelector('svg');
+                if (currentIcon) {
+                    currentIcon.classList.remove('animate-spin');
+                }
+                ui.refreshButton.disabled = false;
+                showToast("View refreshed!");
+            }, 700);
         });
         
         document.addEventListener('change', async (e) => {
@@ -685,7 +716,7 @@
             ui.acceptOrderBtn.dataset.orderId = order.id;
 
             ui.newOrderDetails.innerHTML = `
-                <p><strong>Order ID:</strong> #${order.id.slice(0,6).toUpperCase()}</p>
+                <p><strong>Order ID:</strong> #${order.orderId || order.id.slice(0,6).toUpperCase()}</p>
                 <p><strong>Customer:</strong> ${order.userName}</p>
                 <p><strong>Address:</strong> ${order.userLocation}</p>
                 <p><strong>Total:</strong> ৳${order.totalAmount}</p>
