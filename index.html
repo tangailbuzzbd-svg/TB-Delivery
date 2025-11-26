@@ -286,6 +286,91 @@
         </div>
     </div>
 
+    <!-- Delivery Confirmation Modal (QR Scan + Photo) -->
+    <div id="delivery-confirmation-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-hidden">
+        <div class="modal-backdrop absolute inset-0"></div>
+        <div class="modal-content relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl m-4 p-6 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-2xl font-bold text-gray-800 dark:text-white">Confirm Delivery</h3>
+                <button id="close-delivery-confirmation-btn" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <div id="delivery-confirmation-content">
+                <!-- Step 1: QR Scan -->
+                <div id="qr-scan-step" class="space-y-4">
+                    <div class="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <div class="flex items-start gap-3">
+                            <i data-lucide="alert-circle" class="w-6 h-6 text-blue-600 dark:text-blue-400 mt-0.5"></i>
+                            <div>
+                                <h4 class="font-semibold text-blue-900 dark:text-blue-200 mb-1">Scan QR Code to Verify</h4>
+                                <p class="text-sm text-blue-800 dark:text-blue-300">Please scan the QR code on the shipping label to confirm this delivery.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Order ID:</p>
+                        <p id="confirm-order-id" class="text-lg font-bold text-gray-800 dark:text-white font-mono">#...</p>
+                    </div>
+
+                    <!-- QR Reader -->
+                    <div id="qr-reader-confirm" class="rounded-lg overflow-hidden border-2 border-gray-300 dark:border-gray-600" style="width: 100%;"></div>
+                    
+                    <div class="flex gap-2 justify-center">
+                        <button id="start-scan-confirm-btn" class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-colors flex items-center gap-2">
+                            <i data-lucide="camera" class="w-5 h-5"></i>
+                            Start QR Scanner
+                        </button>
+                        <button id="stop-scan-confirm-btn" class="hidden px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold transition-colors flex items-center gap-2">
+                            <i data-lucide="square" class="w-5 h-5"></i>
+                            Stop Scanner
+                        </button>
+                    </div>
+
+                    <div id="qr-scan-status" class="hidden"></div>
+                </div>
+
+                <!-- Step 2: Photo Upload (Hidden initially) -->
+                <div id="photo-upload-step" class="hidden space-y-4">
+                    <div class="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                        <div class="flex items-start gap-3">
+                            <i data-lucide="check-circle" class="w-6 h-6 text-green-600 dark:text-green-400 mt-0.5"></i>
+                            <div>
+                                <h4 class="font-semibold text-green-900 dark:text-green-200 mb-1">QR Code Verified!</h4>
+                                <p class="text-sm text-green-800 dark:text-green-300">Now take a photo as proof of delivery.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            <i data-lucide="camera" class="w-4 h-4 inline mr-1"></i>
+                            Delivery Photo
+                        </label>
+                        <input type="file" id="delivery-photo-confirm" accept="image/*" capture="environment" 
+                            class="block w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-900/50 dark:file:text-blue-200 cursor-pointer">
+                    </div>
+
+                    <div id="photo-preview" class="hidden">
+                        <img id="photo-preview-img" src="" alt="Preview" class="w-full h-auto max-h-64 object-contain rounded-lg border-2 border-gray-300 dark:border-gray-600">
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button id="upload-confirm-btn" class="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-colors flex items-center justify-center gap-2">
+                            <i data-lucide="upload" class="w-5 h-5"></i>
+                            Complete Delivery
+                        </button>
+                        <button id="skip-photo-confirm-btn" class="px-6 py-3 bg-gray-400 text-white rounded-lg hover:bg-gray-500 font-semibold transition-colors">
+                            Skip Photo
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Notification -->
     <div id="toast" class="fixed bottom-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg transition-all duration-300 toast-enter z-50">
         <p id="toast-message"></p>
@@ -359,6 +444,19 @@
             profileStatus: document.getElementById('profile-status'),
             profileTotalOrders: document.getElementById('profile-total-orders'),
             profileTotalCod: document.getElementById('profile-total-cod'),
+            deliveryConfirmModal: document.getElementById('delivery-confirmation-modal'),
+            closeDeliveryConfirmBtn: document.getElementById('close-delivery-confirmation-btn'),
+            confirmOrderId: document.getElementById('confirm-order-id'),
+            qrScanStep: document.getElementById('qr-scan-step'),
+            photoUploadStep: document.getElementById('photo-upload-step'),
+            startScanConfirmBtn: document.getElementById('start-scan-confirm-btn'),
+            stopScanConfirmBtn: document.getElementById('stop-scan-confirm-btn'),
+            qrScanStatus: document.getElementById('qr-scan-status'),
+            deliveryPhotoConfirm: document.getElementById('delivery-photo-confirm'),
+            photoPreview: document.getElementById('photo-preview'),
+            photoPreviewImg: document.getElementById('photo-preview-img'),
+            uploadConfirmBtn: document.getElementById('upload-confirm-btn'),
+            skipPhotoConfirmBtn: document.getElementById('skip-photo-confirm-btn'),
         };
 
         let state = {
@@ -373,6 +471,9 @@
             currentUserData: null,
             html5QrCode: null, // QR Code scanner instance
             isScannerRunning: false,
+            html5QrCodeConfirm: null, // Confirmation modal QR scanner
+            isScannerRunningConfirm: false,
+            pendingDeliveryOrderId: null, // Order ID waiting for delivery confirmation
         };
         
         // --- Authentication ---
@@ -864,32 +965,33 @@
             if (e.target.classList.contains('status-change-delivery')) {
                 const orderId = e.target.dataset.id;
                 const newStatus = e.target.value;
+                const previousStatus = state.allOrders.find(o => o.id === orderId)?.status || '';
+                
+                // If trying to change to "delivered", require QR scan and photo
+                if (newStatus === 'delivered') {
+                    // Reset dropdown to previous value
+                    e.target.value = previousStatus;
+                    
+                    // Show confirmation modal for delivery with QR scan
+                    showDeliveryConfirmationModal(orderId);
+                    return;
+                }
+                
+                // For other status changes (e.g., out-for-delivery)
                 const orderRef = doc(db, 'orders', orderId);
                 let updatePayload = { status: newStatus };
 
                 try {
                     if (newStatus === 'out-for-delivery') {
                         updatePayload.outForDeliveryAt = new Date();
-                    } else if (newStatus === 'delivered') {
-                        const orderSnap = await getDoc(orderRef);
-                        const orderData = orderSnap.data();
-                        
-                        const startTime = orderData.acceptedAt?.toDate() || orderData.createdAt?.toDate();
-                        const deliveredAtTime = new Date();
-                        updatePayload.deliveredAt = deliveredAtTime;
-
-                        if (startTime) {
-                             const totalDurationInMinutes = Math.round((deliveredAtTime - startTime) / 60000);
-                             updatePayload.totalDeliveryDurationMinutes = totalDurationInMinutes;
-                        }
                     }
 
                     await updateDoc(orderRef, updatePayload);
-                    showToast(`Order status updated.`);
+                    showToast(`Order status updated to ${newStatus}.`);
                 } catch(error) {
                     console.error("Failed to update order status:", error);
                     showToast("Could not update status.", "error");
-                    e.target.value = state.allOrders.find(o => o.id === orderId)?.status || '';
+                    e.target.value = previousStatus;
                 }
             }
         });
@@ -1184,7 +1286,7 @@
                 }
 
                 // Check if order is assigned to this delivery man
-                if (auth.currentUser && orderData.assignedDeliveryMan !== auth.currentUser.uid) {
+                if (auth.currentUser && orderData.assignedDeliveryManId !== auth.currentUser.uid) {
                     resultDiv.className = 'mt-4 p-4 bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 rounded-lg';
                     resultDiv.innerHTML = `<strong>Not Assigned:</strong> This order is not assigned to you!`;
                     return;
@@ -1338,6 +1440,227 @@
 
         ui.qrScanInput?.addEventListener('focus', () => {
             if (ui.qrScanResult) ui.qrScanResult.classList.add('hidden');
+        });
+
+        // --- Delivery Confirmation Modal Functions ---
+        function showDeliveryConfirmationModal(orderId) {
+            state.pendingDeliveryOrderId = orderId;
+            
+            // Get order details
+            const order = state.allOrders.find(o => o.id === orderId);
+            if (!order) {
+                showToast('Order not found!', 'error');
+                return;
+            }
+            
+            const orderIdDisplay = order.orderId || orderId.substring(0, 6);
+            ui.confirmOrderId.textContent = `#${orderIdDisplay}`;
+            
+            // Reset modal to step 1
+            ui.qrScanStep.classList.remove('hidden');
+            ui.photoUploadStep.classList.add('hidden');
+            ui.qrScanStatus.classList.add('hidden');
+            
+            // Show modal
+            showModal(ui.deliveryConfirmModal);
+        }
+
+        function hideDeliveryConfirmationModal() {
+            stopConfirmScanner();
+            state.pendingDeliveryOrderId = null;
+            hideModal(ui.deliveryConfirmModal);
+        }
+
+        // Start QR Scanner in Confirmation Modal
+        async function startConfirmScanner() {
+            try {
+                if (!state.html5QrCodeConfirm) {
+                    state.html5QrCodeConfirm = new Html5Qrcode("qr-reader-confirm");
+                }
+                
+                ui.startScanConfirmBtn.disabled = true;
+                ui.startScanConfirmBtn.innerHTML = '<i data-lucide="loader" class="w-5 h-5 animate-spin"></i> Starting...';
+                lucide.createIcons();
+
+                const config = {
+                    fps: 10,
+                    qrbox: { width: 250, height: 250 },
+                    aspectRatio: 1.0,
+                };
+
+                await state.html5QrCodeConfirm.start(
+                    { facingMode: "environment" },
+                    config,
+                    async (decodedText, decodedResult) => {
+                        console.log('QR Code scanned:', decodedText);
+                        
+                        // Verify if scanned QR matches the order ID
+                        if (decodedText === state.pendingDeliveryOrderId) {
+                            // Success! Stop scanner and move to photo step
+                            await stopConfirmScanner();
+                            
+                            ui.qrScanStatus.className = 'p-4 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 rounded-lg flex items-center gap-2';
+                            ui.qrScanStatus.innerHTML = '<i data-lucide="check-circle" class="w-5 h-5"></i> <span>QR Code Verified!</span>';
+                            ui.qrScanStatus.classList.remove('hidden');
+                            lucide.createIcons();
+                            
+                            // Move to photo upload step
+                            setTimeout(() => {
+                                ui.qrScanStep.classList.add('hidden');
+                                ui.photoUploadStep.classList.remove('hidden');
+                            }, 1000);
+                            
+                        } else {
+                            // Wrong QR code
+                            ui.qrScanStatus.className = 'p-4 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 rounded-lg flex items-center gap-2';
+                            ui.qrScanStatus.innerHTML = '<i data-lucide="x-circle" class="w-5 h-5"></i> <span>Wrong QR Code! Please scan the correct order label.</span>';
+                            ui.qrScanStatus.classList.remove('hidden');
+                            lucide.createIcons();
+                        }
+                    },
+                    (errorMessage) => {
+                        // Scanning errors (ignore)
+                    }
+                );
+
+                state.isScannerRunningConfirm = true;
+                ui.startScanConfirmBtn.classList.add('hidden');
+                ui.stopScanConfirmBtn.classList.remove('hidden');
+
+            } catch (err) {
+                console.error('Error starting confirmation scanner:', err);
+                let errorMsg = 'Failed to start camera. ';
+                
+                if (err.name === 'NotAllowedError') {
+                    errorMsg += 'Please allow camera access.';
+                } else if (err.name === 'NotFoundError') {
+                    errorMsg += 'No camera found.';
+                } else {
+                    errorMsg += err.message || 'Unknown error.';
+                }
+                
+                showToast(errorMsg, 'error');
+                ui.startScanConfirmBtn.disabled = false;
+                ui.startScanConfirmBtn.innerHTML = '<i data-lucide="camera" class="w-5 h-5"></i> Start QR Scanner';
+                lucide.createIcons();
+            }
+        }
+
+        // Stop Confirmation Scanner
+        async function stopConfirmScanner() {
+            if (state.html5QrCodeConfirm && state.isScannerRunningConfirm) {
+                try {
+                    await state.html5QrCodeConfirm.stop();
+                    state.isScannerRunningConfirm = false;
+                    ui.stopScanConfirmBtn.classList.add('hidden');
+                    ui.startScanConfirmBtn.classList.remove('hidden');
+                    ui.startScanConfirmBtn.disabled = false;
+                    ui.startScanConfirmBtn.innerHTML = '<i data-lucide="camera" class="w-5 h-5"></i> Start QR Scanner';
+                    lucide.createIcons();
+                } catch (err) {
+                    console.error('Error stopping confirmation scanner:', err);
+                }
+            }
+        }
+
+        // Complete Delivery with Photo
+        async function completeDeliveryWithPhoto(photoURL = null) {
+            if (!state.pendingDeliveryOrderId) {
+                showToast('No order selected!', 'error');
+                return;
+            }
+
+            try {
+                const orderRef = doc(db, 'orders', state.pendingDeliveryOrderId);
+                const orderSnap = await getDoc(orderRef);
+                const orderData = orderSnap.data();
+                
+                const startTime = orderData.acceptedAt?.toDate() || orderData.createdAt?.toDate();
+                const deliveredAtTime = new Date();
+                
+                const updatePayload = {
+                    status: 'delivered',
+                    deliveredAt: serverTimestamp(),
+                    scannedByQRCode: true,
+                    deliveryConfirmedAt: deliveredAtTime.toISOString()
+                };
+
+                if (startTime) {
+                    const totalDurationInMinutes = Math.round((deliveredAtTime - startTime) / 60000);
+                    updatePayload.totalDeliveryDurationMinutes = totalDurationInMinutes;
+                }
+                
+                if (photoURL) {
+                    updatePayload.deliveryPhotoURL = photoURL;
+                }
+                
+                await updateDoc(orderRef, updatePayload);
+                
+                showToast('Order delivered successfully!', 'success');
+                hideDeliveryConfirmationModal();
+                
+            } catch (error) {
+                console.error('Error completing delivery:', error);
+                showToast('Failed to complete delivery: ' + error.message, 'error');
+            }
+        }
+
+        // Event Listeners for Confirmation Modal
+        ui.closeDeliveryConfirmBtn?.addEventListener('click', hideDeliveryConfirmationModal);
+        ui.deliveryConfirmModal?.querySelector('.modal-backdrop')?.addEventListener('click', hideDeliveryConfirmationModal);
+        
+        ui.startScanConfirmBtn?.addEventListener('click', startConfirmScanner);
+        ui.stopScanConfirmBtn?.addEventListener('click', stopConfirmScanner);
+
+        // Photo preview
+        ui.deliveryPhotoConfirm?.addEventListener('change', (e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    ui.photoPreviewImg.src = event.target.result;
+                    ui.photoPreview.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Upload photo and complete delivery
+        ui.uploadConfirmBtn?.addEventListener('click', async () => {
+            const file = ui.deliveryPhotoConfirm?.files?.[0];
+            
+            if (!file) {
+                showToast('Please select a photo first!', 'error');
+                return;
+            }
+
+            try {
+                ui.uploadConfirmBtn.disabled = true;
+                ui.uploadConfirmBtn.innerHTML = '<i data-lucide="loader" class="w-5 h-5 animate-spin"></i> Uploading...';
+                lucide.createIcons();
+
+                const storage = getStorage();
+                const timestamp = Date.now();
+                const fileName = `delivery-photos/${state.pendingDeliveryOrderId}_${timestamp}.jpg`;
+                const storageRef = ref(storage, fileName);
+                
+                await uploadBytes(storageRef, file);
+                const photoURL = await getDownloadURL(storageRef);
+                
+                await completeDeliveryWithPhoto(photoURL);
+                
+            } catch (error) {
+                console.error('Error uploading photo:', error);
+                showToast('Failed to upload photo: ' + error.message, 'error');
+                ui.uploadConfirmBtn.disabled = false;
+                ui.uploadConfirmBtn.innerHTML = '<i data-lucide="upload" class="w-5 h-5"></i> Complete Delivery';
+                lucide.createIcons();
+            }
+        });
+
+        // Skip photo
+        ui.skipPhotoConfirmBtn?.addEventListener('click', () => {
+            completeDeliveryWithPhoto(null);
         });
         
         function getStatusInfo(status) {
