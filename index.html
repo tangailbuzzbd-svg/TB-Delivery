@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -141,43 +142,73 @@
                                 <i data-lucide="scan-line" class="w-10 h-10 text-blue-600 dark:text-blue-400"></i>
                             </div>
                             <h3 class="text-2xl font-bold text-gray-800 dark:text-white mb-2">Scan QR Code to Confirm Delivery</h3>
-                            <p class="text-gray-600 dark:text-gray-400">Scan the QR code on the shipping label to mark order as delivered</p>
+                            <p class="text-gray-600 dark:text-gray-400">Use your camera to scan the QR code on the shipping label</p>
                         </div>
 
-                        <div class="max-w-md mx-auto">
-                            <label for="qr-scan-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Enter or Scan Order ID
-                            </label>
-                            <div class="flex gap-2">
-                                <input 
-                                    type="text" 
-                                    id="qr-scan-input"
-                                    placeholder="Scan QR code or enter Order ID..."
-                                    class="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    autofocus
-                                >
-                                <button 
-                                    id="confirm-scan-btn"
-                                    class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors flex items-center gap-2"
-                                >
-                                    <i data-lucide="check" class="w-5 h-5"></i>
-                                    Confirm
+                        <div class="max-w-2xl mx-auto">
+                            <!-- Tab Switcher -->
+                            <div class="flex mb-4 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                                <button id="camera-tab-btn" class="flex-1 py-2 px-4 rounded-md bg-blue-600 text-white font-semibold transition-colors">
+                                    <i data-lucide="camera" class="w-4 h-4 inline mr-2"></i>
+                                    Camera Scanner
                                 </button>
+                                <button id="manual-tab-btn" class="flex-1 py-2 px-4 rounded-md text-gray-600 dark:text-gray-300 font-semibold transition-colors">
+                                    <i data-lucide="keyboard" class="w-4 h-4 inline mr-2"></i>
+                                    Manual Entry
+                                </button>
+                            </div>
+
+                            <!-- Camera Scanner -->
+                            <div id="camera-scanner-view">
+                                <div id="qr-reader" class="rounded-lg overflow-hidden border-2 border-gray-300 dark:border-gray-600 mb-4" style="width: 100%;"></div>
+                                <div class="flex gap-2 justify-center mb-4">
+                                    <button id="start-scan-btn" class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-colors flex items-center gap-2">
+                                        <i data-lucide="play" class="w-5 h-5"></i>
+                                        Start Camera
+                                    </button>
+                                    <button id="stop-scan-btn" class="hidden px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold transition-colors flex items-center gap-2">
+                                        <i data-lucide="square" class="w-5 h-5"></i>
+                                        Stop Camera
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Manual Entry -->
+                            <div id="manual-entry-view" class="hidden">
+                                <label for="qr-scan-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Enter Order ID
+                                </label>
+                                <div class="flex gap-2">
+                                    <input 
+                                        type="text" 
+                                        id="qr-scan-input"
+                                        placeholder="Enter Order ID manually..."
+                                        class="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    >
+                                    <button 
+                                        id="confirm-scan-btn"
+                                        class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors flex items-center gap-2"
+                                    >
+                                        <i data-lucide="check" class="w-5 h-5"></i>
+                                        Confirm
+                                    </button>
+                                </div>
                             </div>
                             
                             <div id="qr-scan-result" class="hidden mt-4"></div>
                         </div>
 
-                        <div class="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <div class="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 max-w-2xl mx-auto">
                             <h4 class="font-semibold text-blue-900 dark:text-blue-200 mb-2 flex items-center gap-2">
                                 <i data-lucide="info" class="w-5 h-5"></i>
                                 Instructions
                             </h4>
                             <ul class="text-sm text-blue-800 dark:text-blue-300 space-y-1 list-disc list-inside">
-                                <li>Position the QR code scanner over the shipping label's QR code</li>
-                                <li>Wait for automatic scan or manually enter the Order ID</li>
+                                <li>Click "Start Camera" to activate QR code scanner</li>
+                                <li>Point your camera at the QR code on the shipping label</li>
+                                <li>The scanner will automatically detect and process the code</li>
                                 <li>You will be prompted to take a delivery photo</li>
-                                <li>Order will be marked as delivered after photo upload</li>
+                                <li>Alternatively, use "Manual Entry" tab to type the Order ID</li>
                             </ul>
                         </div>
                     </div>
@@ -303,6 +334,12 @@
             qrScanInput: document.getElementById('qr-scan-input'),
             confirmScanBtn: document.getElementById('confirm-scan-btn'),
             qrScanResult: document.getElementById('qr-scan-result'),
+            cameraTabBtn: document.getElementById('camera-tab-btn'),
+            manualTabBtn: document.getElementById('manual-tab-btn'),
+            cameraScannerView: document.getElementById('camera-scanner-view'),
+            manualEntryView: document.getElementById('manual-entry-view'),
+            startScanBtn: document.getElementById('start-scan-btn'),
+            stopScanBtn: document.getElementById('stop-scan-btn'),
             profileButton: document.getElementById('profile-button'),
             refreshButton: document.getElementById('refresh-button'),
             viewTitle: document.getElementById('view-title'),
@@ -334,6 +371,8 @@
             audioContext: null,
             allOrders: [], // Holds the current list of all orders from Firestore
             currentUserData: null,
+            html5QrCode: null, // QR Code scanner instance
+            isScannerRunning: false,
         };
         
         // --- Authentication ---
@@ -748,7 +787,10 @@
         }
 
         // --- Event Listeners & Actions ---
-        ui.currentOrdersTab.addEventListener('click', () => {
+        ui.currentOrdersTab.addEventListener('click', async () => {
+            // Stop camera if running
+            await stopCameraScanner();
+            
             ui.currentOrdersTab.classList.add('tab-active');
             ui.currentOrdersTab.classList.remove('text-gray-600', 'dark:text-gray-300');
             ui.scanQrTab.classList.remove('tab-active');
@@ -761,7 +803,7 @@
             ui.viewTitle.textContent = "Current Orders";
         });
 
-        ui.scanQrTab.addEventListener('click', () => {
+        ui.scanQrTab.addEventListener('click', async () => {
             ui.scanQrTab.classList.add('tab-active');
             ui.scanQrTab.classList.remove('text-gray-600', 'dark:text-gray-300');
             ui.currentOrdersTab.classList.remove('tab-active');
@@ -772,11 +814,15 @@
             ui.orderList.classList.add('hidden');
             ui.historyList.classList.add('hidden');
             ui.viewTitle.textContent = "Scan QR Code";
-            // Auto-focus the input when switching to scan tab
-            setTimeout(() => ui.qrScanInput?.focus(), 100);
+            
+            // Initialize camera scanner view (default)
+            ui.cameraTabBtn?.click();
         });
 
-        ui.historyTab.addEventListener('click', () => {
+        ui.historyTab.addEventListener('click', async () => {
+            // Stop camera if running
+            await stopCameraScanner();
+            
             ui.historyTab.classList.add('tab-active');
             ui.historyTab.classList.remove('text-gray-600', 'dark:text-gray-300');
             ui.currentOrdersTab.classList.remove('tab-active');
@@ -989,6 +1035,118 @@
         }
         
         // --- QR Code Scanner Functions ---
+        // Initialize QR Code Scanner
+        function initQRScanner() {
+            if (!state.html5QrCode) {
+                state.html5QrCode = new Html5Qrcode("qr-reader");
+            }
+        }
+
+        // Start Camera Scanner
+        async function startCameraScanner() {
+            try {
+                initQRScanner();
+                
+                ui.startScanBtn.disabled = true;
+                ui.startScanBtn.innerHTML = '<i data-lucide="loader" class="w-5 h-5 animate-spin"></i> Starting...';
+                lucide.createIcons();
+
+                const config = {
+                    fps: 10,
+                    qrbox: { width: 250, height: 250 },
+                    aspectRatio: 1.0,
+                };
+
+                await state.html5QrCode.start(
+                    { facingMode: "environment" }, // Use back camera
+                    config,
+                    (decodedText, decodedResult) => {
+                        // QR Code detected
+                        console.log('QR Code detected:', decodedText);
+                        
+                        // Stop scanner and process
+                        stopCameraScanner();
+                        confirmDeliveryByQR(decodedText);
+                    },
+                    (errorMessage) => {
+                        // Scanning errors (can be ignored - happens when no QR code in frame)
+                    }
+                );
+
+                state.isScannerRunning = true;
+                ui.startScanBtn.classList.add('hidden');
+                ui.stopScanBtn.classList.remove('hidden');
+                showToast('Camera started. Point at QR code.', 'success');
+
+            } catch (err) {
+                console.error('Error starting camera:', err);
+                let errorMsg = 'Failed to start camera. ';
+                
+                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    errorMsg += 'Please allow camera access.';
+                } else if (err.name === 'NotFoundError') {
+                    errorMsg += 'No camera found on device.';
+                } else if (err.name === 'NotReadableError') {
+                    errorMsg += 'Camera is already in use.';
+                } else {
+                    errorMsg += err.message || 'Unknown error.';
+                }
+                
+                showToast(errorMsg, 'error');
+                ui.startScanBtn.disabled = false;
+                ui.startScanBtn.innerHTML = '<i data-lucide="play" class="w-5 h-5"></i> Start Camera';
+                lucide.createIcons();
+            }
+        }
+
+        // Stop Camera Scanner
+        async function stopCameraScanner() {
+            if (state.html5QrCode && state.isScannerRunning) {
+                try {
+                    await state.html5QrCode.stop();
+                    state.isScannerRunning = false;
+                    ui.stopScanBtn.classList.add('hidden');
+                    ui.startScanBtn.classList.remove('hidden');
+                    ui.startScanBtn.disabled = false;
+                    ui.startScanBtn.innerHTML = '<i data-lucide="play" class="w-5 h-5"></i> Start Camera';
+                    lucide.createIcons();
+                } catch (err) {
+                    console.error('Error stopping camera:', err);
+                }
+            }
+        }
+
+        // Tab Switching for Scanner
+        ui.cameraTabBtn?.addEventListener('click', () => {
+            ui.cameraTabBtn.classList.add('bg-blue-600', 'text-white');
+            ui.cameraTabBtn.classList.remove('text-gray-600', 'dark:text-gray-300');
+            ui.manualTabBtn.classList.remove('bg-blue-600', 'text-white');
+            ui.manualTabBtn.classList.add('text-gray-600', 'dark:text-gray-300');
+            ui.cameraScannerView.classList.remove('hidden');
+            ui.manualEntryView.classList.add('hidden');
+            ui.qrScanResult.classList.add('hidden');
+        });
+
+        ui.manualTabBtn?.addEventListener('click', async () => {
+            // Stop camera if running
+            await stopCameraScanner();
+            
+            ui.manualTabBtn.classList.add('bg-blue-600', 'text-white');
+            ui.manualTabBtn.classList.remove('text-gray-600', 'dark:text-gray-300');
+            ui.cameraTabBtn.classList.remove('bg-blue-600', 'text-white');
+            ui.cameraTabBtn.classList.add('text-gray-600', 'dark:text-gray-300');
+            ui.manualEntryView.classList.remove('hidden');
+            ui.cameraScannerView.classList.add('hidden');
+            ui.qrScanResult.classList.add('hidden');
+            
+            // Focus input
+            setTimeout(() => ui.qrScanInput?.focus(), 100);
+        });
+
+        // Start/Stop Scanner Buttons
+        ui.startScanBtn?.addEventListener('click', startCameraScanner);
+        ui.stopScanBtn?.addEventListener('click', stopCameraScanner);
+
         const confirmDeliveryByQR = async (orderId) => {
             const resultDiv = ui.qrScanResult;
             const scanInput = ui.qrScanInput;
