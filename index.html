@@ -125,12 +125,64 @@
                 <!-- Tabs -->
                 <div class="mb-4 flex justify-center p-1 bg-gray-200 dark:bg-gray-800 rounded-lg">
                     <button id="current-orders-tab" class="w-full py-2 px-4 text-sm font-semibold rounded-md transition-colors duration-300 tab-active">Current Orders</button>
+                    <button id="scan-qr-tab" class="w-full py-2 px-4 text-sm font-semibold text-gray-600 dark:text-gray-300 rounded-md transition-colors duration-300">Scan QR Code</button>
                     <button id="history-tab" class="w-full py-2 px-4 text-sm font-semibold text-gray-600 dark:text-gray-300 rounded-md transition-colors duration-300">Delivery History</button>
                 </div>
 
                 <div id="order-list" class="space-y-4">
                     <!-- Current orders will be dynamically inserted here -->
                 </div>
+                
+                <!-- QR Code Scanner Section -->
+                <div id="qr-scanner-section" class="hidden">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                        <div class="text-center mb-6">
+                            <div class="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 rounded-full mx-auto flex items-center justify-center mb-4">
+                                <i data-lucide="scan-line" class="w-10 h-10 text-blue-600 dark:text-blue-400"></i>
+                            </div>
+                            <h3 class="text-2xl font-bold text-gray-800 dark:text-white mb-2">Scan QR Code to Confirm Delivery</h3>
+                            <p class="text-gray-600 dark:text-gray-400">Scan the QR code on the shipping label to mark order as delivered</p>
+                        </div>
+
+                        <div class="max-w-md mx-auto">
+                            <label for="qr-scan-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Enter or Scan Order ID
+                            </label>
+                            <div class="flex gap-2">
+                                <input 
+                                    type="text" 
+                                    id="qr-scan-input"
+                                    placeholder="Scan QR code or enter Order ID..."
+                                    class="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    autofocus
+                                >
+                                <button 
+                                    id="confirm-scan-btn"
+                                    class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors flex items-center gap-2"
+                                >
+                                    <i data-lucide="check" class="w-5 h-5"></i>
+                                    Confirm
+                                </button>
+                            </div>
+                            
+                            <div id="qr-scan-result" class="hidden mt-4"></div>
+                        </div>
+
+                        <div class="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                            <h4 class="font-semibold text-blue-900 dark:text-blue-200 mb-2 flex items-center gap-2">
+                                <i data-lucide="info" class="w-5 h-5"></i>
+                                Instructions
+                            </h4>
+                            <ul class="text-sm text-blue-800 dark:text-blue-300 space-y-1 list-disc list-inside">
+                                <li>Position the QR code scanner over the shipping label's QR code</li>
+                                <li>Wait for automatic scan or manually enter the Order ID</li>
+                                <li>You will be prompted to take a delivery photo</li>
+                                <li>Order will be marked as delivered after photo upload</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
                 <div id="history-list" class="hidden space-y-4">
                     <!-- History orders will be dynamically inserted here -->
                 </div>
@@ -211,25 +263,32 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, query, where, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, query, where, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
         // --- Global Config & Initialization ---
         const firebaseConfig = {
-            apiKey: "AIzaSyBQH3wiKS5_5gGg309REabDmJSk1VLIbtw",
-            authDomain: "tangail-buzz-project.firebaseapp.com",
-            projectId: "tangail-buzz-project",
-            storageBucket: "tangail-buzz-project.firebasestorage.app",
-            messagingSenderId: "1080138191394",
-            appId: "1:1080138191394:web:0e96b05009820b5dc5b07b"
+            apiKey: "AIzaSyBIRNr3X-_xOHQ6ITW3pXgqgcjhP2xEEEA",
+            authDomain: "tangailbuzz47.firebaseapp.com",
+            projectId: "tangailbuzz47",
+            storageBucket: "tangailbuzz47.firebasestorage.app",
+            messagingSenderId: "1017968115713",
+            appId: "1:1017968115713:web:967a0e13107d8816b44000",
+            measurementId: "G-7HYDCZTN2H"
         };
         
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
+        
+        console.log('Firebase initialized successfully');
+        console.log('Auth instance:', auth);
+        console.log('Firestore instance:', db);
 
         // --- UI Elements & State ---
         const ui = {
             loadingSpinner: document.getElementById('loading-spinner'),
+            loadingMessage: document.getElementById('loading-message'),
             loginScreen: document.getElementById('login-screen'),
             loginForm: document.getElementById('login-form'),
             loginError: document.getElementById('login-error'),
@@ -237,8 +296,13 @@
             deliveryManName: document.getElementById('delivery-man-name'),
             orderList: document.getElementById('order-list'),
             historyList: document.getElementById('history-list'),
+            qrScannerSection: document.getElementById('qr-scanner-section'),
             currentOrdersTab: document.getElementById('current-orders-tab'),
+            scanQrTab: document.getElementById('scan-qr-tab'),
             historyTab: document.getElementById('history-tab'),
+            qrScanInput: document.getElementById('qr-scan-input'),
+            confirmScanBtn: document.getElementById('confirm-scan-btn'),
+            qrScanResult: document.getElementById('qr-scan-result'),
             profileButton: document.getElementById('profile-button'),
             refreshButton: document.getElementById('refresh-button'),
             viewTitle: document.getElementById('view-title'),
@@ -277,18 +341,40 @@
             try {
                 ui.loadingSpinner.classList.add('hidden');
                 if (user) {
+                    console.log('User authenticated:', user.email);
+                    console.log('User UID:', user.uid);
+                    
+                    // Show loading message
+                    ui.loadingSpinner.classList.remove('hidden');
+                    ui.loadingMessage.textContent = 'Verifying delivery access...';
+                    
                     const deliveryManRef = doc(db, 'deliveryMen', user.uid);
+                    console.log('Checking deliveryMen collection with UID:', user.uid);
+                    
                     const deliveryManDoc = await getDoc(deliveryManRef);
+                    console.log('DeliveryMan doc exists:', deliveryManDoc.exists());
                     
                     if (deliveryManDoc.exists()) {
+                        console.log('Delivery man data:', deliveryManDoc.data());
+                    }
+                    
+                    ui.loadingSpinner.classList.add('hidden');
+                    
+                    if (deliveryManDoc.exists()) {
+                        console.log('Delivery man verified:', deliveryManDoc.data());
                         ui.loginScreen.classList.add('hidden');
                         ui.appContainer.classList.remove('hidden');
                         initializeDashboard(user, deliveryManDoc.data());
                     } else {
+                        console.warn('User is not a registered delivery person');
+                        console.warn('Please ensure a document exists in deliveryMen collection with UID:', user.uid);
                         await signOut(auth); 
-                        localStorage.setItem('loginError', 'You are not a registered delivery person.');
+                        ui.loginError.textContent = 'You are not registered as a delivery person. Please contact admin.';
+                        ui.appContainer.classList.add('hidden');
+                        ui.loginScreen.classList.remove('hidden');
                     }
                 } else {
+                    console.log('User logged out');
                     if (state.unsubscribeOrders) state.unsubscribeOrders();
                     if (state.unsubscribeDeliveryMan) state.unsubscribeDeliveryMan();
                     if (state.liveTimerInterval) clearInterval(state.liveTimerInterval);
@@ -304,11 +390,20 @@
                 }
             } catch(error) {
                 console.error("Authentication check failed:", error);
-                showToast("Authentication failed. Check permissions.", "error");
+                ui.loadingSpinner.classList.add('hidden');
+                
+                let errorMsg = "Authentication failed. Please try again.";
+                if (error.code === 'permission-denied') {
+                    errorMsg = "Access denied. Please contact administrator.";
+                } else if (error.message) {
+                    errorMsg = `Error: ${error.message}`;
+                }
+                
+                ui.loginError.textContent = errorMsg;
+                
                 if (auth.currentUser) {
                     await signOut(auth);
                 }
-                ui.loadingSpinner.classList.add('hidden');
                 ui.appContainer.classList.add('hidden');
                 ui.loginScreen.classList.remove('hidden');
             }
@@ -317,10 +412,41 @@
         ui.loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             ui.loginError.textContent = '';
+            
+            const email = e.target.email.value.trim();
+            const password = e.target.password.value;
+            
+            // Show loading state
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalBtnText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i data-lucide="loader" class="w-5 h-5 animate-spin mx-auto"></i>';
+            lucide.createIcons();
+            
             try {
-                await signInWithEmailAndPassword(auth, e.target.email.value, e.target.password.value);
+                await signInWithEmailAndPassword(auth, email, password);
+                // Success - onAuthStateChanged will handle the rest
             } catch (error) {
-                ui.loginError.textContent = "Incorrect email or password.";
+                console.error('Login error:', error);
+                let errorMessage = "Incorrect email or password.";
+                
+                if (error.code === 'auth/invalid-email') {
+                    errorMessage = "Invalid email format.";
+                } else if (error.code === 'auth/user-not-found') {
+                    errorMessage = "No account found with this email.";
+                } else if (error.code === 'auth/wrong-password') {
+                    errorMessage = "Incorrect password.";
+                } else if (error.code === 'auth/too-many-requests') {
+                    errorMessage = "Too many failed attempts. Please try again later.";
+                } else if (error.code === 'auth/network-request-failed') {
+                    errorMessage = "Network error. Please check your internet connection.";
+                }
+                
+                ui.loginError.textContent = errorMessage;
+                
+                // Reset button
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
             }
         });
         
@@ -625,11 +751,29 @@
         ui.currentOrdersTab.addEventListener('click', () => {
             ui.currentOrdersTab.classList.add('tab-active');
             ui.currentOrdersTab.classList.remove('text-gray-600', 'dark:text-gray-300');
+            ui.scanQrTab.classList.remove('tab-active');
+            ui.scanQrTab.classList.add('text-gray-600', 'dark:text-gray-300');
             ui.historyTab.classList.remove('tab-active');
             ui.historyTab.classList.add('text-gray-600', 'dark:text-gray-300');
             ui.orderList.classList.remove('hidden');
+            ui.qrScannerSection.classList.add('hidden');
             ui.historyList.classList.add('hidden');
             ui.viewTitle.textContent = "Current Orders";
+        });
+
+        ui.scanQrTab.addEventListener('click', () => {
+            ui.scanQrTab.classList.add('tab-active');
+            ui.scanQrTab.classList.remove('text-gray-600', 'dark:text-gray-300');
+            ui.currentOrdersTab.classList.remove('tab-active');
+            ui.currentOrdersTab.classList.add('text-gray-600', 'dark:text-gray-300');
+            ui.historyTab.classList.remove('tab-active');
+            ui.historyTab.classList.add('text-gray-600', 'dark:text-gray-300');
+            ui.qrScannerSection.classList.remove('hidden');
+            ui.orderList.classList.add('hidden');
+            ui.historyList.classList.add('hidden');
+            ui.viewTitle.textContent = "Scan QR Code";
+            // Auto-focus the input when switching to scan tab
+            setTimeout(() => ui.qrScanInput?.focus(), 100);
         });
 
         ui.historyTab.addEventListener('click', () => {
@@ -637,7 +781,10 @@
             ui.historyTab.classList.remove('text-gray-600', 'dark:text-gray-300');
             ui.currentOrdersTab.classList.remove('tab-active');
             ui.currentOrdersTab.classList.add('text-gray-600', 'dark:text-gray-300');
+            ui.scanQrTab.classList.remove('tab-active');
+            ui.scanQrTab.classList.add('text-gray-600', 'dark:text-gray-300');
             ui.historyList.classList.remove('hidden');
+            ui.qrScannerSection.classList.add('hidden');
             ui.orderList.classList.add('hidden');
             ui.viewTitle.textContent = "Delivery History";
         });
@@ -840,6 +987,200 @@
                 toast.classList.add('toast-exit-active');
             }, 4000);
         }
+        
+        // --- QR Code Scanner Functions ---
+        const confirmDeliveryByQR = async (orderId) => {
+            const resultDiv = ui.qrScanResult;
+            const scanInput = ui.qrScanInput;
+            
+            if (!orderId || !orderId.trim()) {
+                resultDiv.className = 'mt-4 p-4 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 rounded-lg';
+                resultDiv.textContent = 'Please enter or scan a valid Order ID!';
+                resultDiv.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                resultDiv.className = 'mt-4 p-4 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-lg';
+                resultDiv.textContent = 'Processing...';
+                resultDiv.classList.remove('hidden');
+
+                // Fetch order from database
+                const orderRef = doc(db, 'orders', orderId);
+                const orderSnap = await getDoc(orderRef);
+
+                if (!orderSnap.exists()) {
+                    resultDiv.className = 'mt-4 p-4 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 rounded-lg';
+                    resultDiv.innerHTML = `<strong>Error:</strong> Order ID <code class="font-mono">${orderId}</code> not found!`;
+                    return;
+                }
+
+                const orderData = orderSnap.data();
+                const currentStatus = orderData.status || 'pending';
+
+                // Check if order is already delivered
+                if (currentStatus === 'delivered') {
+                    resultDiv.className = 'mt-4 p-4 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 rounded-lg';
+                    resultDiv.innerHTML = `<strong>Already Delivered:</strong> Order <code class="font-mono">#${orderData.orderId || orderId.substring(0, 6)}</code> was delivered.`;
+                    return;
+                }
+
+                // Check if order is assigned to this delivery man
+                if (auth.currentUser && orderData.assignedDeliveryMan !== auth.currentUser.uid) {
+                    resultDiv.className = 'mt-4 p-4 bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 rounded-lg';
+                    resultDiv.innerHTML = `<strong>Not Assigned:</strong> This order is not assigned to you!`;
+                    return;
+                }
+
+                // Check if order is in shipped or out-for-delivery status
+                if (currentStatus !== 'shipped' && currentStatus !== 'out-for-delivery') {
+                    resultDiv.className = 'mt-4 p-4 bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 rounded-lg';
+                    resultDiv.innerHTML = `<strong>Invalid Status:</strong> Order must be "Shipped" or "Out for Delivery". Current: <strong>${currentStatus}</strong>`;
+                    return;
+                }
+
+                // Show image capture prompt
+                resultDiv.className = 'mt-4 p-4 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-lg';
+                resultDiv.innerHTML = `
+                    <div class="flex items-start gap-3">
+                        <i data-lucide="camera" class="w-6 h-6 mt-0.5"></i>
+                        <div class="flex-1">
+                            <strong class="text-lg">Capture Delivery Photo</strong>
+                            <p class="mt-1">Please take a photo as proof of delivery for Order <code class="font-mono font-semibold">#${orderData.orderId || orderId.substring(0, 6)}</code></p>
+                            <div class="mt-3 space-y-2">
+                                <input type="file" id="delivery-photo-input-qr" accept="image/*" capture="environment" 
+                                    class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-900/50 dark:file:text-blue-200">
+                                <div class="flex gap-2">
+                                    <button id="upload-delivery-photo-btn-qr" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2">
+                                        <i data-lucide="upload" class="w-4 h-4"></i>
+                                        Upload Photo
+                                    </button>
+                                    <button id="skip-delivery-photo-btn-qr" class="px-4 py-2 bg-gray-400 text-white rounded-lg hover:bg-gray-500">
+                                        Skip Photo
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                lucide.createIcons();
+
+                // Handle photo upload
+                const uploadBtn = document.getElementById('upload-delivery-photo-btn-qr');
+                const skipBtn = document.getElementById('skip-delivery-photo-btn-qr');
+                const photoInput = document.getElementById('delivery-photo-input-qr');
+
+                const completeDelivery = async (photoURL = null) => {
+                    try {
+                        // Update order status to delivered
+                        const updateData = {
+                            status: 'delivered',
+                            deliveredAt: serverTimestamp(),
+                            scannedByQRCode: true,
+                            deliveryConfirmedAt: new Date().toISOString()
+                        };
+                        
+                        if (photoURL) {
+                            updateData.deliveryPhotoURL = photoURL;
+                        }
+                        
+                        await updateDoc(orderRef, updateData);
+
+                        // Success message
+                        resultDiv.className = 'mt-4 p-4 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 rounded-lg';
+                        resultDiv.innerHTML = `
+                            <div class="flex items-start gap-3">
+                                <i data-lucide="check-circle" class="w-6 h-6 mt-0.5"></i>
+                                <div>
+                                    <strong class="text-lg">Delivery Confirmed!</strong>
+                                    <p class="mt-1">Order <code class="font-mono font-semibold">#${orderData.orderId || orderId.substring(0, 6)}</code> has been successfully delivered.</p>
+                                    <p class="mt-1 text-sm">Customer: <strong>${orderData.userName || 'N/A'}</strong></p>
+                                    <p class="text-sm">Total Amount: <strong>৳${(orderData.totalAmount || 0).toFixed(2)}</strong></p>
+                                    <p class="text-sm">Delivered at: <strong>${new Date().toLocaleString()}</strong></p>
+                                    ${photoURL ? '<p class="text-sm text-green-700 dark:text-green-300"><i data-lucide="check" class="w-4 h-4 inline"></i> Delivery photo uploaded</p>' : ''}
+                                </div>
+                            </div>
+                        `;
+                        lucide.createIcons();
+
+                        // Clear input
+                        if (scanInput) scanInput.value = '';
+
+                        // Show toast
+                        showToast(`Order #${orderData.orderId || orderId.substring(0, 6)} delivered successfully!`, 'success');
+
+                    } catch (error) {
+                        console.error('Error completing delivery:', error);
+                        resultDiv.className = 'mt-4 p-4 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 rounded-lg';
+                        resultDiv.innerHTML = `<strong>Error:</strong> Failed to complete delivery. ${error.message}`;
+                    }
+                };
+
+                // Upload photo button click
+                if (uploadBtn) {
+                    uploadBtn.addEventListener('click', async () => {
+                        const file = photoInput?.files?.[0];
+                        if (!file) {
+                            showToast('Please select a photo first!', 'error');
+                            return;
+                        }
+
+                        try {
+                            uploadBtn.disabled = true;
+                            uploadBtn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Uploading...';
+                            lucide.createIcons();
+
+                            // Upload to Firebase Storage
+                            const storage = getStorage();
+                            const timestamp = Date.now();
+                            const fileName = `delivery-photos/${orderId}_${timestamp}.jpg`;
+                            const storageRef = ref(storage, fileName);
+                            
+                            await uploadBytes(storageRef, file);
+                            const photoURL = await getDownloadURL(storageRef);
+                            
+                            await completeDelivery(photoURL);
+                        } catch (error) {
+                            console.error('Error uploading photo:', error);
+                            showToast('Failed to upload photo: ' + error.message, 'error');
+                            uploadBtn.disabled = false;
+                            uploadBtn.innerHTML = '<i data-lucide="upload" class="w-4 h-4"></i> Upload Photo';
+                            lucide.createIcons();
+                        }
+                    });
+                }
+
+                // Skip photo button click
+                if (skipBtn) {
+                    skipBtn.addEventListener('click', () => {
+                        completeDelivery(null);
+                    });
+                }
+
+            } catch (error) {
+                console.error('Error confirming delivery:', error);
+                resultDiv.className = 'mt-4 p-4 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 rounded-lg';
+                resultDiv.innerHTML = `<strong>Error:</strong> Failed to confirm delivery. ${error.message}`;
+            }
+        };
+
+        // Setup QR scanner event listeners
+        ui.confirmScanBtn?.addEventListener('click', () => {
+            const orderId = ui.qrScanInput?.value.trim() || '';
+            confirmDeliveryByQR(orderId);
+        });
+
+        ui.qrScanInput?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const orderId = ui.qrScanInput.value.trim();
+                confirmDeliveryByQR(orderId);
+            }
+        });
+
+        ui.qrScanInput?.addEventListener('focus', () => {
+            if (ui.qrScanResult) ui.qrScanResult.classList.add('hidden');
+        });
         
         function getStatusInfo(status) {
             switch (status) {
