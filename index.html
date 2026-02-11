@@ -319,21 +319,6 @@
                     <span id="profile-status" class="font-bold text-gray-800 dark:text-white">N/A</span>
                 </div>
                 
-                <!-- Online/Offline Status -->
-                <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
-                    <div class="flex items-center gap-2">
-                        <i data-lucide="radio" class="w-4 h-4 text-gray-600 dark:text-gray-300"></i>
-                        <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Delivery Status</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span id="profile-online-status-text" class="text-xs font-medium text-gray-500 dark:text-gray-400">Offline</span>
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" id="profile-online-toggle" class="sr-only peer">
-                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-green-600"></div>
-                        </label>
-                    </div>
-                </div>
-                
                 <!-- Theme Toggle -->
                 <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
                     <div class="flex items-center gap-2">
@@ -530,18 +515,18 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, query, where, doc, getDoc, updateDoc, serverTimestamp, GeoPoint } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, query, where, doc, getDoc, updateDoc, setDoc, serverTimestamp, GeoPoint } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
         // --- Global Config & Initialization ---
         const firebaseConfig = {
-            apiKey: "AIzaSyBIRNr3X-_xOHQ6ITW3pXgqgcjhP2xEEEA",
-            authDomain: "tangailbuzz47.firebaseapp.com",
-            projectId: "tangailbuzz47",
-            storageBucket: "tangailbuzz47.firebasestorage.app",
-            messagingSenderId: "1017968115713",
-            appId: "1:1017968115713:web:967a0e13107d8816b44000",
-            measurementId: "G-7HYDCZTN2H"
+            apiKey: "AIzaSyC3Y_vUl_fG_lRc-dhWnrNVlmC7BwJ1KSg",
+            authDomain: "tangailbuzz-com.firebaseapp.com",
+            projectId: "tangailbuzz-com",
+            storageBucket: "tangailbuzz-com.firebasestorage.app",
+            messagingSenderId: "163495913951",
+            appId: "1:163495913951:web:76d2a9689ef53d61b8bc6a",
+            measurementId: "G-NZNM37VHDY"
         };
         
         const app = initializeApp(firebaseConfig);
@@ -618,8 +603,6 @@
             photoPreviewImg: document.getElementById('photo-preview-img'),
             uploadConfirmBtn: document.getElementById('upload-confirm-btn'),
             skipPhotoConfirmBtn: document.getElementById('skip-photo-confirm-btn'),
-            profileOnlineToggle: document.getElementById('profile-online-toggle'),
-            profileOnlineStatusText: document.getElementById('profile-online-status-text'),
             profileThemeToggle: document.getElementById('profile-theme-toggle'),
             // Notification elements
             notificationBell: document.getElementById('notification-bell'),
@@ -797,25 +780,68 @@
             console.log('🚀 [INIT] Initializing dashboard for delivery man:', {
                 uid: user.uid,
                 email: user.email,
-                name: deliveryManData.name,
-                isOnline: deliveryManData.isOnline
+                name: deliveryManData.name
             });
             
             state.currentUserData = deliveryManData;
             ui.deliveryManName.textContent = deliveryManData.name || "Delivery Staff";
             
-            // Initialize online status from Firestore (but keep toggle off by default)
-            if (deliveryManData.isOnline) {
-                // User was online before, but don't auto-enable on page load
-                // They need to manually toggle it for location permission
-                console.log('User was previously online. Toggle to go online again.');
-            }
+            // Automatically request location permission and start tracking on login
+            requestLocationPermissionOnLogin();
             
             initializeDatePicker();
             listenForAssignedOrders(user.uid);
             listenForDeliveryManUpdates(user.uid);
             initializeNotifications(); // Initialize SMS notifications
             lucide.createIcons();
+        }
+        
+        // Request location permission automatically on login
+        async function requestLocationPermissionOnLogin() {
+            try {
+                console.log('📍 Requesting location permission...');
+                
+                if (!navigator.geolocation) {
+                    console.error('❌ Geolocation not supported');
+                    showToast('Your browser does not support location tracking', 'error');
+                    return;
+                }
+                
+                // Request permission
+                navigator.geolocation.getCurrentPosition(
+                    async (position) => {
+                        console.log('✅ Location permission granted');
+                        showToast('Location tracking enabled', 'success');
+                        
+                        // Start tracking
+                        state.isOnline = true;
+                        await updateOnlineStatus(true);
+                        startLocationTracking();
+                    },
+                    (error) => {
+                        console.error('❌ Location permission denied:', error);
+                        let errorMsg = 'Location permission denied';
+                        
+                        if (error.code === error.PERMISSION_DENIED) {
+                            errorMsg = 'Please enable location permission in browser settings';
+                        } else if (error.code === error.POSITION_UNAVAILABLE) {
+                            errorMsg = 'Location information unavailable';
+                        } else if (error.code === error.TIMEOUT) {
+                            errorMsg = 'Location request timed out';
+                        }
+                        
+                        showToast(errorMsg, 'warning');
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    }
+                );
+            } catch (error) {
+                console.error('❌ Error requesting location:', error);
+                showToast('Failed to request location permission', 'error');
+            }
         }
         
         function initializeDatePicker() {
@@ -1062,7 +1088,7 @@
                      <div class="flex items-center gap-2 mb-2">
                         <span class="flex items-center justify-center w-7 h-7 ${isDelivered ? 'bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-300 border-2 border-green-300 dark:border-green-700' : 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300 border-2 border-blue-300 dark:border-blue-700'} font-bold rounded-full text-xs flex-shrink-0">${serialNumber}</span>
                         <div class="flex-1 min-w-0">
-                            <p class="font-bold text-base text-gray-800 dark:text-white truncate">Order #${order.orderId || order.id.slice(0, 6).toUpperCase()}</p>
+                            <p class="font-bold text-base text-gray-800 dark:text-white truncate">Order #${order.orderId || order.id.slice(-8).toUpperCase()}</p>
                             <p class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-0.5">
                                 <i data-lucide="calendar-clock" class="w-3 h-3"></i>
                                 <span>${createdAtFormatted}</span>
@@ -1310,9 +1336,23 @@
                 
                 // For other status changes (e.g., out-for-delivery)
                 const orderRef = doc(db, 'orders', orderId);
-                let updatePayload = { status: newStatus };
-
+                
                 try {
+                    // Check if order has assignedDeliveryManId, if not set it first
+                    const orderSnap = await getDoc(orderRef);
+                    const orderData = orderSnap.data();
+                    
+                    if (!orderData.assignedDeliveryManId && auth.currentUser) {
+                        // Assign this order to current delivery man first
+                        await updateDoc(orderRef, {
+                            assignedDeliveryManId: auth.currentUser.uid,
+                            assignedDeliveryManName: state.currentUserData?.name || 'N/A',
+                            assignedDeliveryManPhone: state.currentUserData?.phone || 'N/A'
+                        });
+                    }
+                    
+                    // Now update the status
+                    let updatePayload = { status: newStatus };
                     if (newStatus === 'out-for-delivery') {
                         updatePayload.outForDeliveryAt = new Date();
                     }
@@ -1357,9 +1397,23 @@
                 
                 // For other status changes (e.g., out-for-delivery)
                 const orderRef = doc(db, 'orders', orderId);
-                let updatePayload = { status: newStatus };
 
                 try {
+                    // Check if order has assignedDeliveryManId, if not set it first
+                    const orderSnap = await getDoc(orderRef);
+                    const orderData = orderSnap.data();
+                    
+                    if (!orderData.assignedDeliveryManId && auth.currentUser) {
+                        // Assign this order to current delivery man first
+                        await updateDoc(orderRef, {
+                            assignedDeliveryManId: auth.currentUser.uid,
+                            assignedDeliveryManName: state.currentUserData?.name || 'N/A',
+                            assignedDeliveryManPhone: state.currentUserData?.phone || 'N/A'
+                        });
+                    }
+                    
+                    // Now update the status
+                    let updatePayload = { status: newStatus };
                     if (newStatus === 'out-for-delivery') {
                         updatePayload.outForDeliveryAt = new Date();
                     }
@@ -1389,7 +1443,7 @@
             ui.acceptOrderBtn.dataset.orderId = order.id;
 
             ui.newOrderDetails.innerHTML = `
-                <p><strong>Order ID:</strong> #${order.orderId || order.id.slice(0,6).toUpperCase()}</p>
+                <p><strong>Order ID:</strong> #${order.orderId || order.id.slice(-8).toUpperCase()}</p>
                 <p><strong>Customer:</strong> ${order.userName || 'N/A'}</p>
                 <p><strong>Phone:</strong> ${order.deliveryAddress?.phone || 'N/A'}</p>
                 <p><strong>Address:</strong> ${order.deliveryAddress?.address || 'N/A'}${order.deliveryAddress?.district ? ', ' + order.deliveryAddress.district : ''}${order.deliveryAddress?.thana ? ', ' + order.deliveryAddress.thana : ''}</p>
@@ -1401,10 +1455,16 @@
         
         ui.acceptOrderBtn.addEventListener('click', async (e) => {
             const orderId = e.currentTarget.dataset.orderId;
-            if (!orderId) return;
+            if (!orderId || !auth.currentUser) return;
 
             try {
-                await updateDoc(doc(db, 'orders', orderId), { acceptedAt: new Date() });
+                // Set assignedDeliveryManId when accepting order
+                await updateDoc(doc(db, 'orders', orderId), { 
+                    acceptedAt: new Date(),
+                    assignedDeliveryManId: auth.currentUser.uid,
+                    assignedDeliveryManName: state.currentUserData?.name || 'N/A',
+                    assignedDeliveryManPhone: state.currentUserData?.phone || 'N/A'
+                });
                 showToast("Order accepted!", "success");
             } catch (error) {
                 console.error("Failed to accept order:", error);
@@ -1705,11 +1765,29 @@
                     return;
                 }
 
-                // Check if order is assigned to this delivery man
-                if (auth.currentUser && orderData.assignedDeliveryManId !== auth.currentUser.uid) {
-                    resultDiv.className = 'mt-4 p-4 bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 rounded-lg';
-                    resultDiv.innerHTML = `<strong>Not Assigned:</strong> This order is not assigned to you!`;
-                    return;
+                // Check if order is assigned to this delivery man, if not assign it
+                if (auth.currentUser) {
+                    if (orderData.assignedDeliveryManId && orderData.assignedDeliveryManId !== auth.currentUser.uid) {
+                        resultDiv.className = 'mt-4 p-4 bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 rounded-lg';
+                        resultDiv.innerHTML = `<strong>Not Assigned:</strong> This order is assigned to another delivery person!`;
+                        return;
+                    }
+                    
+                    // If not assigned, assign to current delivery man
+                    if (!orderData.assignedDeliveryManId) {
+                        try {
+                            await updateDoc(orderRef, {
+                                assignedDeliveryManId: auth.currentUser.uid,
+                                assignedDeliveryManName: state.currentUserData?.name || 'N/A',
+                                assignedDeliveryManPhone: state.currentUserData?.phone || 'N/A'
+                            });
+                        } catch (assignError) {
+                            console.error('Error assigning order:', assignError);
+                            resultDiv.className = 'mt-4 p-4 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 rounded-lg';
+                            resultDiv.innerHTML = `<strong>Error:</strong> Could not assign order. ${assignError.message}`;
+                            return;
+                        }
+                    }
                 }
 
                 // Check if order is in shipped or out-for-delivery status
@@ -1752,19 +1830,28 @@
 
                 const completeDelivery = async (photoURL = null) => {
                     try {
-                        // Update order status to delivered
+                        // Update order status to delivered (only allowed fields)
                         const updateData = {
                             status: 'delivered',
-                            deliveredAt: serverTimestamp(),
-                            scannedByQRCode: true,
-                            deliveryConfirmedAt: new Date().toISOString()
+                            deliveredAt: serverTimestamp()
                         };
                         
-                        if (photoURL) {
-                            updateData.deliveryPhotoURL = photoURL;
-                        }
-                        
                         await updateDoc(orderRef, updateData);
+
+                        // Store additional delivery details in a separate subcollection (optional)
+                        // This avoids permission issues while keeping extra data
+                        try {
+                            const deliveryDetailsRef = doc(db, 'orders', orderId, 'deliveryDetails', 'confirmation');
+                            await setDoc(deliveryDetailsRef, {
+                                scannedByQRCode: true,
+                                deliveryConfirmedAt: new Date().toISOString(),
+                                deliveryPhotoURL: photoURL || null,
+                                deliveredBy: auth.currentUser?.uid || null,
+                                deliveredByName: state.currentUserData?.name || 'N/A'
+                            });
+                        } catch (subError) {
+                            console.log('Note: Could not store delivery details subcollection:', subError.message);
+                        }
 
                         // Success message
                         resultDiv.className = 'mt-4 p-4 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 rounded-lg';
@@ -2259,89 +2346,6 @@
                 showToast('Failed to update status', 'error');
             }
         }
-
-        /**
-         * Update UI for online/offline status
-         */
-        function updateOnlineStatusUI() {
-            // Update profile modal toggle
-            if (ui.profileOnlineToggle) {
-                ui.profileOnlineToggle.checked = state.isOnline;
-            }
-            
-            // Update profile modal status text
-            if (ui.profileOnlineStatusText) {
-                if (state.isOnline) {
-                    ui.profileOnlineStatusText.textContent = 'Online';
-                    ui.profileOnlineStatusText.classList.remove('text-gray-500', 'dark:text-gray-400');
-                    ui.profileOnlineStatusText.classList.add('text-green-600', 'dark:text-green-400', 'font-semibold');
-                } else {
-                    ui.profileOnlineStatusText.textContent = 'Offline';
-                    ui.profileOnlineStatusText.classList.remove('text-green-600', 'dark:text-green-400', 'font-semibold');
-                    ui.profileOnlineStatusText.classList.add('text-gray-500', 'dark:text-gray-400');
-                }
-            }
-        }
-
-        /**
-         * Handle online toggle change (Profile Modal)
-         */
-        ui.profileOnlineToggle?.addEventListener('change', async (e) => {
-            const isChecked = e.target.checked;
-            
-            if (isChecked) {
-                // Going online - request location permission
-                if (!navigator.geolocation) {
-                    showToast('Geolocation is not supported by your browser', 'error');
-                    ui.profileOnlineToggle.checked = false;
-                    return;
-                }
-
-                // Request permission and start tracking
-                try {
-                    // First, get current position to trigger permission request
-                    const position = await new Promise((resolve, reject) => {
-                        navigator.geolocation.getCurrentPosition(resolve, reject, {
-                            enableHighAccuracy: true,
-                            timeout: 10000,
-                            maximumAge: 0
-                        });
-                    });
-
-                    // Permission granted
-                    state.isOnline = true;
-                    updateOnlineStatusUI();
-                    await updateOnlineStatus(true);
-                    
-                    // Update initial location
-                    const { latitude, longitude } = position.coords;
-                    await updateLocationInFirestore(latitude, longitude);
-                    
-                    // Start continuous tracking
-                    startLocationTracking();
-                    
-                    showToast('You are now online! Location tracking enabled.', 'success');
-                } catch (error) {
-                    console.error('Location permission error:', error);
-                    ui.profileOnlineToggle.checked = false;
-                    state.isOnline = false;
-                    updateOnlineStatusUI();
-                    
-                    if (error.code === 1) {
-                        showToast('Location permission denied. Please enable location access to go online.', 'error');
-                    } else {
-                        showToast('Failed to get location. Please check your GPS settings.', 'error');
-                    }
-                }
-            } else {
-                // Going offline
-                state.isOnline = false;
-                updateOnlineStatusUI();
-                stopLocationTracking();
-                await updateOnlineStatus(false);
-                showToast('You are now offline. Location tracking disabled.', 'info');
-            }
-        });
 
         /**
          * Theme Toggle - Light/Dark Mode (Profile Modal)
