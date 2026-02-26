@@ -5,6 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Delivery Panel</title>
+    <!-- FAVICON -->
+    <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/tangailbuzzbd-svg/TangailBuzz-Picture-/main/gdrg_upscaled%20(1).png">
+    <link rel="shortcut icon" type="image/png" href="https://raw.githubusercontent.com/tangailbuzzbd-svg/TangailBuzz-Picture-/main/gdrg_upscaled%20(1).png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -16,9 +19,9 @@
             font-family: 'Inter', sans-serif;
             -webkit-tap-highlight-color: transparent;
         }
-        .toast-enter { opacity: 0; transform: translateY(20px) scale(0.95); }
+        .toast-enter { opacity: 0; transform: translateY(-20px) scale(0.95); }
         .toast-enter-active { opacity: 1; transform: translateY(0) scale(1); transition: opacity 300ms, transform 300ms; }
-        .toast-exit-active { opacity: 0; transform: translateY(20px) scale(0.95); transition: opacity 300ms, transform 300ms; }
+        .toast-exit-active { opacity: 0; transform: translateY(-20px) scale(0.95); transition: opacity 300ms, transform 300ms; }
         
         /* Modal styles */
         .modal-backdrop {
@@ -83,7 +86,43 @@
         .dark .flatpickr-day.today {
             border-color: #3b82f6 !important;
         }
+        @keyframes pulse {
+            0%   { box-shadow: 0 0 0 0 rgba(37,99,235,.5); }
+            70%  { box-shadow: 0 0 0 8px rgba(37,99,235,0); }
+            100% { box-shadow: 0 0 0 0 rgba(37,99,235,0); }
+        }
+        @keyframes mapPulse {
+            0%   { transform: scale(1);   opacity: .6; }
+            50%  { transform: scale(2.2); opacity: 0; }
+            100% { transform: scale(1);   opacity: .6; }
+        }
+        /* Profile modal bottom nav tab active style */
+        .profile-tab-active {
+            color: #3b82f6 !important;
+        }
+        .profile-tab-active i {
+            color: #3b82f6 !important;
+        }
+        /* Profile modal inner QR scanner tab */
+        .profile-qr-tab-active {
+            background-color: #3b82f6;
+            color: #ffffff;
+        }
+        /* Main bottom nav active */
+        .main-nav-active {
+            color: #3b82f6 !important;
+        }
+        .main-nav-active i,
+        .main-nav-active svg {
+            color: #3b82f6 !important;
+        }
+        /* Padding so content is not hidden under bottom nav */
+        #app-container main {
+            padding-bottom: 80px;
+        }
     </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body class="bg-gray-50 dark:bg-gray-900">
 
@@ -121,153 +160,178 @@
         <header class="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-10 border-b border-gray-200 dark:border-gray-700">
             <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2 sm:py-3 flex justify-between items-center gap-2">
                 <h1 class="text-base sm:text-xl lg:text-2xl font-bold text-gray-800 dark:text-white truncate">Delivery Dashboard</h1>
-                <div class="flex items-center gap-2 sm:gap-3 md:gap-4">
+                <div class="flex items-center gap-2 sm:gap-3">
                     <!-- Notification Bell -->
                     <button id="notification-bell" class="relative flex-shrink-0 w-9 h-9 sm:w-10 sm:h-10 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition">
                         <i data-lucide="bell" class="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-300"></i>
                         <span id="notification-badge" class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full items-center justify-center font-bold opacity-0 pointer-events-none" style="display: flex;">0</span>
                     </button>
-                    <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 text-right hidden md:block">Welcome,<br><span id="delivery-man-name" class="font-semibold text-gray-800 dark:text-white"></span></p>
-                    <button id="profile-button" class="flex-shrink-0 w-9 h-9 sm:w-10 sm:h-10 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center hover:bg-gray-300 dark:hover:bg-gray-600 transition">
-                        <i data-lucide="user" class="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-300"></i>
-                    </button>
+                    <!-- Delivery man name pill (no profile button — use bottom nav Profile tab) -->
+                    <div class="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-full px-3 py-1.5">
+                        <span class="w-2 h-2 rounded-full bg-green-400 flex-shrink-0"></span>
+                        <span id="delivery-man-name" class="text-xs font-semibold text-blue-700 dark:text-blue-300 max-w-[100px] truncate"></span>
+                    </div>
                 </div>
             </div>
         </header>
+        <!-- Hidden profile button stub for JS compatibility -->
+        <button id="profile-button" class="hidden"></button>
+
+        <!-- Hidden elements kept for JS compatibility -->
+        <input type="text" id="collection-date" class="hidden">
+        <p id="total-collection-info" class="hidden">৳0</p>
+        <p id="total-deliveries-info" class="hidden">0</p>
+        <button id="scan-qr-tab" class="hidden"></button>
+        <button id="history-tab" class="hidden"></button>
+        <button id="current-orders-tab" class="hidden tab-active"></button>
+        <div id="qr-scanner-section" class="hidden"></div>
+        <div id="history-list" class="hidden"></div>
+        <div id="qr-scan-result" class="hidden"></div>
+        <div id="camera-scanner-view" class="hidden">
+            <div id="qr-reader" class="hidden"></div>
+            <button id="start-scan-btn" class="hidden"></button>
+            <button id="stop-scan-btn" class="hidden"></button>
+        </div>
+        <div id="manual-entry-view" class="hidden">
+            <input type="text" id="qr-scan-input" class="hidden">
+            <button id="confirm-scan-btn" class="hidden"></button>
+        </div>
+        <button id="camera-tab-btn" class="hidden"></button>
+        <button id="manual-tab-btn" class="hidden"></button>
 
         <main class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6">
             <div id="dashboard-content">
-                 <div class="mb-4 sm:mb-6 bg-white dark:bg-gray-800 p-3 sm:p-4 rounded-lg shadow-sm text-center">
-                    <div class="flex flex-col sm:flex-row justify-center items-center gap-2 mb-3">
-                       <label for="collection-date" class="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Stats & History for:</label>
-                       <input type="text" id="collection-date" placeholder="Select a date..." class="border border-gray-300 dark:border-gray-600 rounded-md p-1.5 text-xs sm:text-sm text-gray-800 dark:text-white bg-gray-50 dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer w-full sm:w-auto max-w-xs">
-                    </div>
-                     <div class="grid grid-cols-2 divide-x dark:divide-gray-700 mt-2">
-                        <div class="p-2 sm:p-3">
-                            <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">COD Collection</p>
-                            <p id="total-collection-info" class="text-lg sm:text-2xl font-bold text-green-600 dark:text-green-400">৳0</p>
-                        </div>
-                        <div class="p-2 sm:p-3">
-                            <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">Total Deliveries</p>
-                            <p id="total-deliveries-info" class="text-lg sm:text-2xl font-bold text-blue-600 dark:text-blue-400">0</p>
-                        </div>
-                    </div>
-                 </div>
-                 
-                 <div class="flex justify-between items-center mb-4">
+                <div class="flex justify-between items-center mb-4">
                     <h2 id="view-title" class="text-xl font-semibold text-gray-800 dark:text-gray-200">Current Orders</h2>
-                    <button id="refresh-button" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200 disabled:opacity-50" title="Refresh View">
+                    <button id="refresh-button" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200 disabled:opacity-50" title="Refresh">
                         <i data-lucide="refresh-cw" class="w-5 h-5 text-gray-600 dark:text-gray-400"></i>
                     </button>
                 </div>
 
-                <!-- Tabs -->
-                <div class="mb-4 flex justify-center p-1 bg-gray-200 dark:bg-gray-800 rounded-lg gap-1">
-                    <button id="current-orders-tab" class="flex-1 py-2 px-2 sm:px-4 text-xs sm:text-sm font-semibold rounded-md transition-colors duration-300 tab-active">
-                        <span class="hidden sm:inline">Current Orders</span>
-                        <span class="sm:hidden">Orders</span>
-                    </button>
-                    <button id="scan-qr-tab" class="flex-1 py-2 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-gray-600 dark:text-gray-300 rounded-md transition-colors duration-300">
-                        <span class="hidden sm:inline">Scan QR Code</span>
-                        <span class="sm:hidden">QR Scan</span>
-                    </button>
-                    <button id="history-tab" class="flex-1 py-2 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-gray-600 dark:text-gray-300 rounded-md transition-colors duration-300">
-                        <span class="hidden sm:inline">Delivery History</span>
-                        <span class="sm:hidden">History</span>
-                    </button>
+                <!-- ORDERS VIEW -->
+                <div id="main-orders-view">
+                    <div id="order-list" class="space-y-4">
+                        <!-- Current orders will be dynamically inserted here -->
+                    </div>
                 </div>
 
-                <div id="order-list" class="space-y-4">
-                    <!-- Current orders will be dynamically inserted here -->
+                <!-- QR SCAN VIEW -->
+                <div id="main-scan-view" class="hidden">
+                    <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl p-4 mb-4">
+                        <div class="flex items-start gap-3">
+                            <i data-lucide="info" class="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0"></i>
+                            <div>
+                                <p class="text-sm font-semibold text-blue-900 dark:text-blue-200">Scan QR Code</p>
+                                <p class="text-xs text-blue-700 dark:text-blue-300 mt-0.5">Scan the QR code on the package to confirm delivery.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1 gap-1 mb-4">
+                        <button id="main-camera-tab" class="flex-1 py-2 text-xs font-semibold rounded-lg bg-blue-600 text-white transition-all flex items-center justify-center gap-1.5">
+                            <i data-lucide="camera" class="w-3.5 h-3.5"></i> Camera
+                        </button>
+                        <button id="main-manual-tab" class="flex-1 py-2 text-xs font-semibold rounded-lg text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-700 transition-all flex items-center justify-center gap-1.5">
+                            <i data-lucide="keyboard" class="w-3.5 h-3.5"></i> Manual
+                        </button>
+                    </div>
+                    <div id="main-qr-camera-view">
+                        <div id="main-qr-reader" class="rounded-xl overflow-hidden border-2 border-gray-300 dark:border-gray-600 mb-3" style="width:100%;"></div>
+                        <div class="flex gap-2 justify-center">
+                            <button id="main-start-scan-btn" class="flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-xl transition-colors">
+                                <i data-lucide="camera" class="w-4 h-4"></i> Start Scanner
+                            </button>
+                            <button id="main-stop-scan-btn" class="items-center gap-2 px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-xl transition-colors" style="display:none;">
+                                <i data-lucide="square" class="w-4 h-4"></i> Stop
+                            </button>
+                        </div>
+                    </div>
+                    <div id="main-qr-manual-view" class="hidden mt-4">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Enter Order ID</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="main-qr-input" placeholder="e.g. ORD-12345…"
+                                class="flex-1 px-3 py-2.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-xl text-sm focus:ring-2 focus:ring-blue-500">
+                            <button id="main-qr-confirm-btn" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl transition-colors flex items-center gap-1.5">
+                                <i data-lucide="check" class="w-4 h-4"></i> Confirm
+                            </button>
+                        </div>
+                    </div>
+                    <div id="main-qr-result" class="hidden mt-4"></div>
                 </div>
-                
-                <!-- QR Code Scanner Section -->
-                <div id="qr-scanner-section" class="hidden">
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-                        <div class="text-center mb-6">
-                            <div class="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 rounded-full mx-auto flex items-center justify-center mb-4">
-                                <i data-lucide="scan-line" class="w-10 h-10 text-blue-600 dark:text-blue-400"></i>
-                            </div>
-                            <h3 class="text-2xl font-bold text-gray-800 dark:text-white mb-2">Scan QR Code to Confirm Delivery</h3>
-                            <p class="text-gray-600 dark:text-gray-400">Use your camera to scan the QR code on the shipping label</p>
+
+                <!-- LOCATION VIEW -->
+                <div id="main-location-view" class="hidden">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="map-pin" class="w-4 h-4 text-blue-500"></i>
+                            <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">My Current Location</p>
                         </div>
-
-                        <div class="max-w-2xl mx-auto">
-                            <!-- Tab Switcher -->
-                            <div class="flex mb-4 bg-gray-100 dark:bg-gray-700 rounded-lg p-1 gap-1">
-                                <button id="camera-tab-btn" class="flex-1 py-2 px-2 sm:px-4 rounded-md bg-blue-600 text-white text-xs sm:text-sm font-semibold transition-colors">
-                                    <i data-lucide="camera" class="w-3.5 h-3.5 sm:w-4 sm:h-4 inline mr-1 sm:mr-2"></i>
-                                    <span class="hidden sm:inline">Camera Scanner</span>
-                                    <span class="sm:hidden">Camera</span>
-                                </button>
-                                <button id="manual-tab-btn" class="flex-1 py-2 px-2 sm:px-4 rounded-md text-gray-600 dark:text-gray-300 text-xs sm:text-sm font-semibold transition-colors">
-                                    <i data-lucide="keyboard" class="w-3.5 h-3.5 sm:w-4 sm:h-4 inline mr-1 sm:mr-2"></i>
-                                    <span class="hidden sm:inline">Manual Entry</span>
-                                    <span class="sm:hidden">Manual</span>
-                                </button>
+                        <button id="main-location-refresh-btn" class="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors">
+                            <i data-lucide="refresh-cw" class="w-3 h-3"></i> Refresh
+                        </button>
+                    </div>
+                    <div id="main-location-status" class="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl text-sm text-blue-700 dark:text-blue-300 items-center gap-2" style="display:none;">
+                        <i data-lucide="loader" class="w-4 h-4 animate-spin flex-shrink-0"></i>
+                        <span id="main-location-status-text">Getting your location…</span>
+                    </div>
+                    <div id="main-location-coords" class="hidden mb-3 bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                                <p class="text-gray-500 dark:text-gray-400">Latitude</p>
+                                <p id="main-lat-val" class="font-semibold text-gray-800 dark:text-white mt-0.5">—</p>
                             </div>
-
-                            <!-- Camera Scanner -->
-                            <div id="camera-scanner-view">
-                                <div id="qr-reader" class="rounded-lg overflow-hidden border-2 border-gray-300 dark:border-gray-600 mb-4" style="width: 100%;"></div>
-                                <div class="flex gap-2 justify-center mb-4">
-                                    <button id="start-scan-btn" class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-colors flex items-center gap-2">
-                                        <i data-lucide="play" class="w-5 h-5"></i>
-                                        Start Camera
-                                    </button>
-                                    <button id="stop-scan-btn" class="hidden">
-                                        <i data-lucide="square" class="w-5 h-5"></i>
-                                        Stop Camera
-                                    </button>
-                                </div>
+                            <div>
+                                <p class="text-gray-500 dark:text-gray-400">Longitude</p>
+                                <p id="main-lng-val" class="font-semibold text-gray-800 dark:text-white mt-0.5">—</p>
                             </div>
-
-                            <!-- Manual Entry -->
-                            <div id="manual-entry-view" class="hidden">
-                                <label for="qr-scan-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    Enter Order ID
-                                </label>
-                                <div class="flex gap-2">
-                                    <input 
-                                        type="text" 
-                                        id="qr-scan-input"
-                                        placeholder="Enter Order ID manually..."
-                                        class="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    >
-                                    <button 
-                                        id="confirm-scan-btn"
-                                        class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors flex items-center gap-2"
-                                    >
-                                        <i data-lucide="check" class="w-5 h-5"></i>
-                                        Confirm
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div id="qr-scan-result" class="hidden mt-4"></div>
                         </div>
+                    </div>
+                    <div id="main-location-map" class="rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700" style="height:320px;"></div>
+                    <a id="main-open-gmaps-btn" href="#" target="_blank" class="mt-3 w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors" style="display:none;">
+                        <i data-lucide="navigation" class="w-4 h-4"></i> Open in Google Maps
+                    </a>
+                </div>
 
-                        <div class="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 max-w-2xl mx-auto">
-                            <h4 class="font-semibold text-blue-900 dark:text-blue-200 mb-2 flex items-center gap-2">
-                                <i data-lucide="info" class="w-5 h-5"></i>
-                                Instructions
-                            </h4>
-                            <ul class="text-sm text-blue-800 dark:text-blue-300 space-y-1 list-disc list-inside">
-                                <li>Click "Start Camera" to activate QR code scanner</li>
-                                <li>Point your camera at the QR code on the shipping label</li>
-                                <li>The scanner will automatically detect and process the code</li>
-                                <li>You will be prompted to take a delivery photo</li>
-                                <li>Alternatively, use "Manual Entry" tab to type the Order ID</li>
-                            </ul>
+                <!-- HISTORY VIEW -->
+                <div id="main-history-view" class="hidden">
+                    <div class="flex items-center justify-between mb-3">
+                        <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">Recent Deliveries</p>
+                        <span id="main-history-count" class="text-xs font-bold bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 px-2.5 py-0.5 rounded-full">0</span>
+                    </div>
+                    <div id="main-history-list" class="space-y-2">
+                        <div class="text-center py-10 text-gray-400 dark:text-gray-500">
+                            <i data-lucide="history" class="w-10 h-10 mx-auto mb-2 opacity-40"></i>
+                            <p class="text-sm">No delivery history yet.</p>
                         </div>
                     </div>
                 </div>
-                
-                <div id="history-list" class="hidden space-y-4">
-                    <!-- History orders will be dynamically inserted here -->
-                </div>
+
             </div>
         </main>
+
+        <!-- ── PERSISTENT MOBILE BOTTOM NAV ── -->
+        <nav id="main-bottom-nav" class="fixed bottom-0 left-0 right-0 z-30 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex items-stretch shadow-2xl">
+            <button id="mainnav-orders" class="main-nav-active flex-1 flex flex-col items-center justify-center gap-1 py-3 text-[10px] font-semibold transition-colors">
+                <i data-lucide="package-2" class="w-5 h-5"></i>
+                <span>Orders</span>
+            </button>
+            <button id="mainnav-scan" class="hidden"></button>
+            <button id="mainnav-location" class="flex-1 flex flex-col items-center justify-center gap-1 py-3 text-[10px] font-semibold text-gray-400 dark:text-gray-500 hover:text-blue-500 transition-colors">
+                <i data-lucide="map-pin" class="w-5 h-5"></i>
+                <span>Location</span>
+            </button>
+            <button id="mainnav-history" class="flex-1 flex flex-col items-center justify-center gap-1 py-3 text-[10px] font-semibold text-gray-400 dark:text-gray-500 hover:text-blue-500 transition-colors">
+                <i data-lucide="history" class="w-5 h-5"></i>
+                <span>History</span>
+            </button>
+            <button id="mainnav-profile" class="flex-1 flex flex-col items-center justify-center gap-1 py-3 text-[10px] font-semibold text-gray-400 dark:text-gray-500 hover:text-blue-500 transition-colors">
+                <div id="mainnav-profile-avatar" class="w-6 h-6 rounded-full bg-blue-200 dark:bg-blue-800 overflow-hidden flex items-center justify-center flex-shrink-0">
+                    <img id="mainnav-profile-img" src="" alt="" class="hidden w-full h-full object-cover">
+                    <i data-lucide="user-circle" class="w-5 h-5"></i>
+                </div>
+                <span>Profile</span>
+            </button>
+        </nav>
+
     </div>
 
     <!-- New Order Modal -->
@@ -288,65 +352,197 @@
     </div>
     
     <!-- Profile Modal -->
-    <div id="profile-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-hidden">
+    <div id="profile-modal" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 modal-hidden">
         <div class="modal-backdrop absolute inset-0"></div>
-        <div class="modal-content relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm m-4 p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-2xl font-bold text-gray-800 dark:text-white">My Profile</h3>
-                <button id="close-profile-modal-btn" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                    <i data-lucide="x" class="w-6 h-6"></i>
-                </button>
-            </div>
-            <div class="text-center mb-6">
-                <div class="w-24 h-24 rounded-full bg-blue-100 dark:bg-blue-900 mx-auto flex items-center justify-center mb-3">
-                     <i data-lucide="bike" class="w-12 h-12 text-blue-500"></i>
+        <div class="modal-content relative bg-white dark:bg-gray-900 rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg flex flex-col overflow-hidden" style="max-height:96vh;">
+
+            <!-- ── HEADER BANNER ── -->
+            <div class="relative bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 px-5 pt-5 pb-5 flex-shrink-0">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xs font-bold text-white/80 tracking-widest uppercase">My Profile</h3>
+                    <div class="flex items-center gap-2">
+                        <button id="profile-theme-toggle" class="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/20 hover:bg-white/30 border border-white/30 rounded-lg transition-colors">
+                            <i data-lucide="sun" class="w-3.5 h-3.5 text-white hidden dark:block"></i>
+                            <i data-lucide="moon" class="w-3.5 h-3.5 text-white block dark:hidden"></i>
+                            <span class="text-xs font-medium text-white hidden dark:inline">Light</span>
+                            <span class="text-xs font-medium text-white dark:hidden">Dark</span>
+                        </button>
+                        <button id="close-profile-modal-btn" class="p-1.5 bg-white/20 hover:bg-white/30 rounded-full transition-colors">
+                            <i data-lucide="x" class="w-5 h-5 text-white"></i>
+                        </button>
+                    </div>
                 </div>
-                <p id="profile-name" class="text-xl font-semibold text-gray-800 dark:text-white"></p>
-                <p id="profile-email" class="text-sm text-gray-500 dark:text-gray-400"></p>
+                <div class="flex items-center gap-4">
+                    <div class="relative flex-shrink-0">
+                        <div id="profile-avatar-wrapper" class="w-20 h-20 rounded-full ring-4 ring-white/30 overflow-hidden bg-blue-500 flex items-center justify-center shadow-xl">
+                            <img id="profile-photo-img" src="" alt="Profile Photo" class="hidden w-full h-full object-cover">
+                            <i id="profile-photo-fallback" data-lucide="user-circle" class="w-12 h-12 text-white/80"></i>
+                        </div>
+                        <span id="profile-online-dot" class="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full bg-gray-400 border-2 border-white shadow"></span>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p id="profile-name" class="text-xl font-bold text-white leading-tight truncate">—</p>
+                        <p id="profile-email" class="text-xs text-white/70 truncate mt-0.5"></p>
+                        <div class="mt-2">
+                            <span id="profile-status" class="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-semibold rounded-full bg-white/20 text-white border border-white/30">N/A</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div class="space-y-4 mb-6">
-                <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
-                    <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Phone Number</span>
-                    <span id="profile-phone" class="font-bold text-gray-800 dark:text-white">N/A</span>
-                </div>
-                <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
-                    <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Vehicle</span>
-                    <span id="profile-vehicle" class="font-bold text-gray-800 dark:text-white">N/A</span>
-                </div>
-                <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
-                    <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Account Status</span>
-                    <span id="profile-status" class="font-bold text-gray-800 dark:text-white">N/A</span>
-                </div>
-                
-                <!-- Theme Toggle -->
-                <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
-                    <div class="flex items-center gap-2">
-                        <i data-lucide="palette" class="w-4 h-4 text-gray-600 dark:text-gray-300"></i>
-                        <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Theme</span>
+            <!-- ── SCROLLABLE TAB CONTENT ── -->
+            <div class="flex-1 overflow-y-auto px-4 pb-4">
+
+                <!-- OVERVIEW -->
+                <div id="ptab-overview-content" class="space-y-3 pt-3">
+                    <div class="bg-gray-50 dark:bg-gray-800 rounded-2xl overflow-hidden divide-y divide-gray-200 dark:divide-gray-700">
+                        <div class="flex items-center gap-3 px-4 py-3.5">
+                            <div class="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="phone" class="w-4 h-4 text-blue-600 dark:text-blue-400"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-[11px] text-gray-400 dark:text-gray-500 font-medium uppercase tracking-wide">My Phone Number</p>
+                                <p id="profile-phone" class="font-semibold text-sm text-gray-900 dark:text-white mt-0.5">N/A</p>
+                            </div>
+                        </div>
+                        <!-- Hidden stub for JS compatibility -->
+                        <a id="profile-call-btn" href="#" class="hidden"></a>
+                        <div class="flex items-center gap-3 px-4 py-3.5">
+                            <div class="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="bike" class="w-4 h-4 text-indigo-600 dark:text-indigo-400"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-[11px] text-gray-400 dark:text-gray-500 font-medium uppercase tracking-wide">Vehicle</p>
+                                <p id="profile-vehicle" class="font-semibold text-sm text-gray-900 dark:text-white mt-0.5">N/A</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3 px-4 py-3.5">
+                            <div class="w-9 h-9 rounded-full bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="shield-check" class="w-4 h-4 text-purple-600 dark:text-purple-400"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-[11px] text-gray-400 dark:text-gray-500 font-medium uppercase tracking-wide">Account Status</p>
+                                <p id="profile-account-status-row" class="font-semibold text-sm text-gray-900 dark:text-white mt-0.5">N/A</p>
+                            </div>
+                        </div>
                     </div>
-                    <button id="profile-theme-toggle" class="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-500 transition-colors">
-                        <i data-lucide="sun" class="w-4 h-4 text-gray-800 dark:text-gray-200 hidden dark:block"></i>
-                        <i data-lucide="moon" class="w-4 h-4 text-gray-800 dark:text-gray-200 block dark:hidden"></i>
-                        <span class="text-xs font-medium text-gray-800 dark:text-gray-200 hidden dark:inline">Light</span>
-                        <span class="text-xs font-medium text-gray-800 dark:text-gray-200 dark:hidden">Dark</span>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl p-4 text-center">
+                            <i data-lucide="package-check" class="w-7 h-7 text-blue-600 dark:text-blue-400 mx-auto mb-1.5"></i>
+                            <p id="profile-total-orders" class="text-3xl font-black text-blue-700 dark:text-blue-300">0</p>
+                            <p class="text-xs text-blue-500 dark:text-blue-400 mt-1 font-medium">Total Delivered</p>
+                        </div>
+                        <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-2xl p-4 text-center">
+                            <i data-lucide="banknote" class="w-7 h-7 text-green-600 dark:text-green-400 mx-auto mb-1.5"></i>
+                            <p id="profile-total-cod" class="text-3xl font-black text-green-700 dark:text-green-300">৳0</p>
+                            <p class="text-xs text-green-500 dark:text-green-400 mt-1 font-medium">Total COD</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STATS -->
+                <div id="ptab-stats-content" class="hidden space-y-3 pt-3">
+                    <div class="bg-gray-50 dark:bg-gray-800 rounded-2xl p-4">
+                        <div class="flex items-center gap-2 mb-2">
+                            <i data-lucide="calendar-days" class="w-4 h-4 text-blue-500"></i>
+                            <label class="text-sm font-semibold text-gray-700 dark:text-gray-300">Stats for Date</label>
+                        </div>
+                        <input type="text" id="profile-stats-date" placeholder="Select date…"
+                            class="w-full border border-gray-300 dark:border-gray-600 rounded-xl px-3 py-2.5 text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 cursor-pointer">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl p-4 text-center">
+                            <i data-lucide="truck" class="w-6 h-6 text-blue-500 mx-auto mb-2"></i>
+                            <p id="profile-stats-deliveries" class="text-3xl font-black text-blue-700 dark:text-blue-300">0</p>
+                            <p class="text-xs text-blue-500 dark:text-blue-400 mt-1 font-medium">Deliveries</p>
+                        </div>
+                        <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-2xl p-4 text-center">
+                            <i data-lucide="wallet" class="w-6 h-6 text-green-500 mx-auto mb-2"></i>
+                            <p id="profile-stats-cod" class="text-3xl font-black text-green-700 dark:text-green-300">৳0</p>
+                            <p class="text-xs text-green-500 dark:text-green-400 mt-1 font-medium">COD Collected</p>
+                        </div>
+                    </div>
+                    <div class="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-2xl p-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="clock" class="w-5 h-5 text-orange-500"></i>
+                                <span class="text-sm font-semibold text-orange-800 dark:text-orange-300">Pending Orders</span>
+                            </div>
+                            <span id="profile-stats-pending" class="text-2xl font-black text-orange-700 dark:text-orange-300">0</span>
+                        </div>
+                    </div>
+                    <div class="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-2xl p-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="navigation" class="w-5 h-5 text-indigo-500"></i>
+                                <span class="text-sm font-semibold text-indigo-800 dark:text-indigo-300">Out for Delivery</span>
+                            </div>
+                            <span id="profile-stats-ofd" class="text-2xl font-black text-indigo-700 dark:text-indigo-300">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- HISTORY (hidden stub — JS compat) -->
+                <div id="ptab-history-content" class="hidden">
+                    <span id="profile-history-count" class="hidden">0</span>
+                    <div id="profile-history-list" class="hidden"></div>
+                </div>
+
+                <!-- LOCATION (hidden stub — JS compat) -->
+                <div id="ptab-location-content" class="hidden">
+                    <button id="profile-location-refresh-btn" class="hidden"></button>
+                    <div id="profile-location-status" style="display:none;"><span id="profile-location-status-text"></span></div>
+                    <div id="profile-location-coords" class="hidden">
+                        <p id="profile-lat-val"></p><p id="profile-lng-val"></p>
+                    </div>
+                    <div id="profile-location-map" class="hidden"></div>
+                    <a id="profile-open-gmaps-btn" href="#" class="hidden"></a>
+                </div>
+
+                <!-- QR SCAN (hidden stub — JS compat) -->
+                <div id="ptab-qr-content" class="hidden">
+                    <div id="profile-qr-camera-view" class="hidden">
+                        <div id="profile-qr-reader"></div>
+                        <button id="profile-camera-tab" class="hidden"></button>
+                        <button id="profile-manual-tab" class="hidden"></button>
+                        <button id="profile-start-scan-btn" class="hidden"></button>
+                        <button id="profile-stop-scan-btn" class="hidden"></button>
+                    </div>
+                    <div id="profile-qr-manual-view" class="hidden">
+                        <input type="text" id="profile-qr-input" class="hidden">
+                        <button id="profile-qr-confirm-btn" class="hidden"></button>
+                    </div>
+                    <div id="profile-qr-result" class="hidden"></div>
+                </div>
+
+            </div>
+
+            <!-- ── FOOTER: 2 Tabs + Logout ── -->
+            <div class="flex-shrink-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
+                <!-- Only Overview + Stats tabs -->
+                <div class="flex items-stretch">
+                    <button id="ptab-overview" class="profile-tab-active flex-1 flex flex-col items-center justify-center gap-1 py-3 text-[10px] font-semibold transition-colors">
+                        <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                        <span>Overview</span>
+                    </button>
+                    <button id="ptab-stats" class="flex-1 flex flex-col items-center justify-center gap-1 py-3 text-[10px] font-semibold text-gray-400 dark:text-gray-500 hover:text-blue-600 transition-colors">
+                        <i data-lucide="bar-chart-2" class="w-5 h-5"></i>
+                        <span>Stats</span>
+                    </button>
+                    <!-- Hidden stubs for JS compat -->
+                    <button id="ptab-history" class="hidden"></button>
+                    <button id="ptab-location" class="hidden"></button>
+                    <button id="ptab-qr" class="hidden"></button>
+                </div>
+                <!-- Logout -->
+                <div class="px-4 pb-4 pt-2">
+                    <button id="logout-button-modal" class="w-full flex items-center justify-center gap-2 py-3 font-bold text-white bg-red-600 rounded-2xl hover:bg-red-700 active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200 shadow-md">
+                        <i data-lucide="log-out" class="w-4 h-4"></i>
+                        <span>Logout</span>
                     </button>
                 </div>
-                
-                <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
-                    <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Total Orders Delivered</span>
-                    <span id="profile-total-orders" class="font-bold text-gray-800 dark:text-white">0</span>
-                </div>
-                <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
-                    <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Total COD Collected</span>
-                    <span id="profile-total-cod" class="font-bold text-gray-800 dark:text-white">৳0</span>
-                </div>
             </div>
 
-            <button id="logout-button-modal" class="w-full flex items-center justify-center gap-2 py-3 font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800 focus:ring-red-500 transition-colors duration-200 transform active:scale-95">
-                 <i data-lucide="log-out" class="w-4 h-4"></i>
-                 <span>Logout</span>
-            </button>
         </div>
     </div>
 
@@ -474,7 +670,111 @@
         </div>
     </div>
 
-    <!-- Reply Modal -->
+    <!-- Map Modal -->
+    <!-- Map Modal — TRUE FULL SCREEN -->
+    <div id="map-modal" class="fixed inset-0 z-50 flex flex-col bg-white dark:bg-gray-900" style="display:none;">
+
+        <!-- ── TOP BAR ── -->
+        <div class="flex-shrink-0 flex items-center justify-between px-4 py-2.5 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+            <div class="min-w-0 flex-1 pr-2">
+                <h3 class="font-bold text-gray-800 dark:text-white flex items-center gap-2 text-sm">
+                    <span class="w-7 h-7 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="map-pin" class="w-4 h-4 text-blue-600 dark:text-blue-400"></i>
+                    </span>
+                    Delivery Route
+                </h3>
+                <p id="map-modal-address" class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 pl-9 truncate"></p>
+            </div>
+            <button id="close-map-modal" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg flex-shrink-0">
+                <i data-lucide="x" class="w-5 h-5 text-gray-600 dark:text-gray-300"></i>
+            </button>
+        </div>
+
+        <!-- ── ROUTE INFO BAR (hidden until route loaded) ── -->
+        <div id="map-route-info" class="hidden flex-shrink-0 bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5">
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-4">
+                    <div class="text-center">
+                        <p id="map-route-distance" class="text-lg font-black text-white leading-tight">—</p>
+                        <p class="text-[10px] font-semibold text-blue-200 uppercase tracking-wide">Distance</p>
+                    </div>
+                    <div class="w-px h-7 bg-white/30"></div>
+                    <div class="text-center">
+                        <p id="map-route-eta" class="text-lg font-black text-white leading-tight">—</p>
+                        <p class="text-[10px] font-semibold text-blue-200 uppercase tracking-wide">ETA</p>
+                    </div>
+                    <div class="w-px h-7 bg-white/30"></div>
+                    <div class="text-center">
+                        <p id="map-route-speed" class="text-lg font-black text-white leading-tight">—</p>
+                        <p class="text-[10px] font-semibold text-blue-200 uppercase tracking-wide">Via Road</p>
+                    </div>
+                </div>
+                <div id="map-route-status" class="flex items-center gap-1.5 bg-white/20 rounded-full px-2.5 py-1">
+                    <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                    <span class="text-[10px] font-bold text-white">LIVE</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── LOADING BAR ── -->
+        <div id="map-loading-bar" class="flex-shrink-0 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800 px-4 py-2 flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
+            <i data-lucide="loader" class="w-4 h-4 animate-spin flex-shrink-0"></i>
+            <span id="map-loading-text">Finding delivery address on map…</span>
+        </div>
+
+        <!-- ── MAP — takes ALL remaining space ── -->
+        <div id="leaflet-map" class="flex-1 w-full" style="min-height:0;"></div>
+
+        <!-- ── BOTTOM ACTION BAR ── -->
+        <div class="flex-shrink-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-3 pt-2 pb-3 space-y-1.5">
+            <div class="flex items-start gap-2 px-1">
+                <span class="w-5 h-5 mt-0.5 flex-shrink-0 text-red-500"><i data-lucide="map-pin" class="w-4 h-4"></i></span>
+                <p id="map-dest-label" class="text-xs text-gray-600 dark:text-gray-300 leading-relaxed flex-1 line-clamp-2"></p>
+            </div>
+            <div class="flex gap-2">
+                <button id="open-gmaps-btn" class="flex-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors shadow-sm">
+                    <i data-lucide="navigation" class="w-4 h-4"></i> Navigate
+                </button>
+                <button id="map-recenter-btn" class="px-4 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-semibold py-3 rounded-xl text-sm flex items-center gap-1.5 transition-colors">
+                    <i data-lucide="crosshair" class="w-4 h-4"></i> Fit
+                </button>
+                <button id="close-map-modal-2" class="px-4 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-semibold py-3 rounded-xl text-sm transition-colors">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer Message Modal (orderMessages) -->
+    <div id="customer-msg-modal" class="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" style="display:none;">
+        <div class="bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-xl shadow-2xl w-full sm:max-w-md flex flex-col" style="max-height:90vh;">
+            <div class="flex items-center justify-between p-4 border-b dark:border-gray-700 flex-shrink-0">
+                <div class="min-w-0 flex-1 pr-2">
+                    <h3 class="font-bold text-gray-800 dark:text-white text-sm flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                        Customer Messages
+                    </h3>
+                    <p id="cmsg-customer-name" class="text-xs text-gray-500 dark:text-gray-400 mt-0.5"></p>
+                </div>
+                <button id="close-customer-msg-modal" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-600 dark:text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div id="cmsg-messages" class="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 dark:bg-gray-900" style="min-height:180px;max-height:350px;">
+                <p class="text-center text-gray-400 dark:text-gray-500 text-sm pt-6" id="cmsg-empty">No messages yet.</p>
+            </div>
+            <div class="p-4 bg-white dark:bg-gray-800 border-t dark:border-gray-700">
+                <div class="flex gap-2">
+                    <input id="cmsg-input" type="text" maxlength="300"
+                        placeholder="Reply to customer…"
+                        class="flex-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <button id="cmsg-send-btn"
+                        class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white px-4 py-2 rounded-xl transition-colors flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="reply-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 items-center justify-center p-4" style="display: none;">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-lg w-full mx-4">
             <div class="bg-gradient-to-r from-green-600 to-green-700 text-white p-4 flex items-center justify-between rounded-t-xl">
@@ -508,14 +808,14 @@
     </div>
 
     <!-- Toast Notification -->
-    <div id="toast" class="fixed bottom-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg transition-all duration-300 toast-enter z-50">
+    <div id="toast" class="fixed top-16 right-4 text-white py-2.5 px-4 rounded-xl shadow-xl transition-all duration-300 toast-enter z-[100] max-w-[280px] text-sm font-medium">
         <p id="toast-message"></p>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, query, where, doc, getDoc, updateDoc, setDoc, serverTimestamp, GeoPoint } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, query, where, orderBy, doc, getDoc, updateDoc, setDoc, addDoc, serverTimestamp, GeoPoint } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
         // --- Global Config & Initialization ---
@@ -588,8 +888,52 @@
             profilePhone: document.getElementById('profile-phone'),
             profileVehicle: document.getElementById('profile-vehicle'),
             profileStatus: document.getElementById('profile-status'),
+            profileAccountStatusRow: document.getElementById('profile-account-status-row'),
             profileTotalOrders: document.getElementById('profile-total-orders'),
             profileTotalCod: document.getElementById('profile-total-cod'),
+            profilePhotoImg: document.getElementById('profile-photo-img'),
+            profilePhotoFallback: document.getElementById('profile-photo-fallback'),
+            profileOnlineDot: document.getElementById('profile-online-dot'),
+            profileCallBtn: document.getElementById('profile-call-btn'),
+            // Profile tabs
+            ptabOverview: document.getElementById('ptab-overview'),
+            ptabStats: document.getElementById('ptab-stats'),
+            ptabHistory: document.getElementById('ptab-history'),
+            ptabLocation: document.getElementById('ptab-location'),
+            ptabQr: document.getElementById('ptab-qr'),
+            ptabOverviewContent: document.getElementById('ptab-overview-content'),
+            ptabStatsContent: document.getElementById('ptab-stats-content'),
+            ptabHistoryContent: document.getElementById('ptab-history-content'),
+            ptabLocationContent: document.getElementById('ptab-location-content'),
+            ptabQrContent: document.getElementById('ptab-qr-content'),
+            // Profile location tab
+            profileLocationRefreshBtn: document.getElementById('profile-location-refresh-btn'),
+            profileLocationStatus: document.getElementById('profile-location-status'),
+            profileLocationStatusText: document.getElementById('profile-location-status-text'),
+            profileLocationCoords: document.getElementById('profile-location-coords'),
+            profileLatVal: document.getElementById('profile-lat-val'),
+            profileLngVal: document.getElementById('profile-lng-val'),
+            profileLocationMap: document.getElementById('profile-location-map'),
+            profileOpenGmapsBtn: document.getElementById('profile-open-gmaps-btn'),
+            // Profile stats tab
+            profileStatsDate: document.getElementById('profile-stats-date'),
+            profileStatsDeliveries: document.getElementById('profile-stats-deliveries'),
+            profileStatsCod: document.getElementById('profile-stats-cod'),
+            profileStatsPending: document.getElementById('profile-stats-pending'),
+            profileStatsOfd: document.getElementById('profile-stats-ofd'),
+            // Profile history tab
+            profileHistoryList: document.getElementById('profile-history-list'),
+            profileHistoryCount: document.getElementById('profile-history-count'),
+            // Profile QR tab
+            profileCameraTab: document.getElementById('profile-camera-tab'),
+            profileManualTab: document.getElementById('profile-manual-tab'),
+            profileQrCameraView: document.getElementById('profile-qr-camera-view'),
+            profileQrManualView: document.getElementById('profile-qr-manual-view'),
+            profileStartScanBtn: document.getElementById('profile-start-scan-btn'),
+            profileStopScanBtn: document.getElementById('profile-stop-scan-btn'),
+            profileQrInput: document.getElementById('profile-qr-input'),
+            profileQrConfirmBtn: document.getElementById('profile-qr-confirm-btn'),
+            profileQrResult: document.getElementById('profile-qr-result'),
             deliveryConfirmModal: document.getElementById('delivery-confirmation-modal'),
             closeDeliveryConfirmBtn: document.getElementById('close-delivery-confirmation-btn'),
             confirmOrderId: document.getElementById('confirm-order-id'),
@@ -618,6 +962,39 @@
             replyCharCount: document.getElementById('reply-char-count'),
             cancelReplyBtn: document.getElementById('cancel-reply-btn'),
             sendReplyBtn: document.getElementById('send-reply-btn'),
+            // Main bottom nav
+            mainnavOrders: document.getElementById('mainnav-orders'),
+            mainnavScan: document.getElementById('mainnav-scan'),
+            mainnavLocation: document.getElementById('mainnav-location'),
+            mainnavHistory: document.getElementById('mainnav-history'),
+            mainnavProfile: document.getElementById('mainnav-profile'),
+            // Main view panels
+            mainOrdersView: document.getElementById('main-orders-view'),
+            mainScanView: document.getElementById('main-scan-view'),
+            mainLocationView: document.getElementById('main-location-view'),
+            mainHistoryView: document.getElementById('main-history-view'),
+            // Main location elements
+            mainLocationRefreshBtn: document.getElementById('main-location-refresh-btn'),
+            mainLocationStatus: document.getElementById('main-location-status'),
+            mainLocationStatusText: document.getElementById('main-location-status-text'),
+            mainLocationCoords: document.getElementById('main-location-coords'),
+            mainLatVal: document.getElementById('main-lat-val'),
+            mainLngVal: document.getElementById('main-lng-val'),
+            mainLocationMap: document.getElementById('main-location-map'),
+            mainOpenGmapsBtn: document.getElementById('main-open-gmaps-btn'),
+            // Main QR scan elements
+            mainCameraTab: document.getElementById('main-camera-tab'),
+            mainManualTab: document.getElementById('main-manual-tab'),
+            mainQrCameraView: document.getElementById('main-qr-camera-view'),
+            mainQrManualView: document.getElementById('main-qr-manual-view'),
+            mainStartScanBtn: document.getElementById('main-start-scan-btn'),
+            mainStopScanBtn: document.getElementById('main-stop-scan-btn'),
+            mainQrInput: document.getElementById('main-qr-input'),
+            mainQrConfirmBtn: document.getElementById('main-qr-confirm-btn'),
+            mainQrResult: document.getElementById('main-qr-result'),
+            // Main history elements
+            mainHistoryList: document.getElementById('main-history-list'),
+            mainHistoryCount: document.getElementById('main-history-count'),
         };
 
         let state = {
@@ -634,6 +1011,10 @@
             isScannerRunning: false,
             html5QrCodeConfirm: null, // Confirmation modal QR scanner
             isScannerRunningConfirm: false,
+            html5QrCodeProfile: null, // Profile modal QR scanner
+            isScannerRunningProfile: false,
+            html5QrCodeMain: null, // Main bottom nav QR scanner
+            isScannerRunningMain: false,
             pendingDeliveryOrderId: null, // Order ID waiting for delivery confirmation
             locationWatchId: null, // Geolocation watch ID
             lastLocation: null, // Last known location
@@ -784,7 +1165,17 @@
             });
             
             state.currentUserData = deliveryManData;
-            ui.deliveryManName.textContent = deliveryManData.name || "Delivery Staff";
+            ui.deliveryManName.textContent = deliveryManData.name || deliveryManData.fullName || "Delivery Staff";
+
+            // ── Set bottom nav profile avatar on load ──
+            const initPhotoUrl = deliveryManData.photoURL || deliveryManData.profilePhoto || deliveryManData.profileImage || '';
+            const navImg = document.getElementById('mainnav-profile-img');
+            const navIcon = document.querySelector('#mainnav-profile-avatar i');
+            if (navImg && initPhotoUrl) {
+                navImg.src = initPhotoUrl;
+                navImg.classList.remove('hidden');
+                if (navIcon) navIcon.classList.add('hidden');
+            }
             
             // Automatically request location permission and start tracking on login
             requestLocationPermissionOnLogin();
@@ -819,18 +1210,30 @@
                         startLocationTracking();
                     },
                     (error) => {
-                        console.error('❌ Location permission denied:', error);
-                        let errorMsg = 'Location permission denied';
-                        
                         if (error.code === error.PERMISSION_DENIED) {
-                            errorMsg = 'Please enable location permission in browser settings';
+                            showToast('Location permission denied — enable it in browser settings', 'warning');
                         } else if (error.code === error.POSITION_UNAVAILABLE) {
-                            errorMsg = 'Location information unavailable';
+                            // Retry with low accuracy — silent
+                            navigator.geolocation.getCurrentPosition(
+                                async (pos) => {
+                                    state.isOnline = true;
+                                    await updateOnlineStatus(true);
+                                    startLocationTracking();
+                                },
+                                () => { /* silent — GPS unavailable on this device/network */ },
+                                { enableHighAccuracy: false, timeout: 15000, maximumAge: 30000 }
+                            );
                         } else if (error.code === error.TIMEOUT) {
-                            errorMsg = 'Location request timed out';
+                            navigator.geolocation.getCurrentPosition(
+                                async (pos) => {
+                                    state.isOnline = true;
+                                    await updateOnlineStatus(true);
+                                    startLocationTracking();
+                                },
+                                () => {},
+                                { enableHighAccuracy: false, timeout: 20000, maximumAge: 60000 }
+                            );
                         }
-                        
-                        showToast(errorMsg, 'warning');
                     },
                     {
                         enableHighAccuracy: true,
@@ -845,16 +1248,7 @@
         }
         
         function initializeDatePicker() {
-            flatpickr(ui.collectionDate, {
-                dateFormat: "Y-m-d", // Machine-readable value
-                defaultDate: "today",
-                altInput: true,      // Create a separate, visible input
-                altFormat: "d-m-Y",  // Format for the visible input
-                onChange: function(selectedDates, dateStr, instance) {
-                    calculateDailyStats(state.allOrders);
-                    renderAllViews(state.allOrders);
-                },
-            });
+            // collection-date moved to profile modal stats tab — no-op here
         }
 
 
@@ -946,38 +1340,13 @@
                     return dateB - dateA;
                 });
 
-            const selectedDateStr = ui.collectionDate.value;
-            const [year, month, day] = selectedDateStr.split('-').map(Number);
-            
-            const deliveredOrders = orders
-                .filter(o => {
-                    if (o.status === 'delivered' && o.deliveredAt) {
-                         const deliveredDate = o.deliveredAt.toDate();
-                         return deliveredDate.getFullYear() === year &&
-                                (deliveredDate.getMonth() + 1) === month &&
-                                deliveredDate.getDate() === day;
-                    }
-                    return false;
-                })
-                .sort((a, b) => (b.deliveredAt?.toMillis() || 0) - (a.deliveredAt?.toMillis() || 0));
-
-            // Render Current Orders
+            // Render Current Orders only
             ui.orderList.innerHTML = '';
             if (pendingOrders.length === 0) {
-                 ui.orderList.innerHTML = '<div class="text-center p-8 bg-white dark:bg-gray-800 rounded-lg shadow-md"><p class="text-gray-500 dark:text-gray-400">No pending orders.</p></div>';
+                ui.orderList.innerHTML = '<div class="text-center p-8 bg-white dark:bg-gray-800 rounded-lg shadow-md"><p class="text-gray-500 dark:text-gray-400">No pending orders.</p></div>';
             } else {
                 pendingOrders.forEach((order) => {
                     ui.orderList.insertAdjacentHTML('beforeend', createOrderCard(order, '-'));
-                });
-            }
-
-            // Render History
-            ui.historyList.innerHTML = '';
-            if (deliveredOrders.length === 0) {
-                 ui.historyList.innerHTML = `<div class="text-center p-8 bg-white dark:bg-gray-800 rounded-lg shadow-md"><p class="text-gray-500 dark:text-gray-400">No deliveries found for ${new Date(year, month - 1, day).toLocaleDateString('en-US',{month:'long', day:'numeric', year:'numeric'})}.</p></div>`;
-            } else {
-                 deliveredOrders.forEach((order, index) => {
-                    ui.historyList.insertAdjacentHTML('beforeend', createHistoryCard(order, index + 1));
                 });
             }
 
@@ -989,7 +1358,25 @@
             const itemsHtml = order.items?.map(item => `<li class="truncate">${item.name} (x${item.quantity})</li>`).join('') || '';
             const { color, text, bg } = getStatusInfo(order.status);
             const isDelivered = order.status === 'delivered';
-            
+
+            // Package summary — category tags + total qty (no prices shown)
+            const totalQty = order.items?.reduce((s, i) => s + (i.quantity || 1), 0) || 0;
+            const categories = [...new Set((order.items || []).map(i => i.category || i.type || '').filter(Boolean))];
+            const categoryTags = categories.length
+                ? categories.map(c => `<span class="inline-block bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-xs font-medium px-2 py-0.5 rounded-full">${c}</span>`).join(' ')
+                : `<span class="inline-block bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium px-2 py-0.5 rounded-full">General</span>`;
+            const packageSummaryHtml = `<div class="flex items-start gap-2"><i data-lucide="package-2" class="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0"></i><div><p class="font-semibold text-gray-800 dark:text-gray-200 text-xs">Package</p><p class="text-xs text-gray-600 dark:text-gray-400 mt-0.5">${totalQty} item${totalQty !== 1 ? 's' : ''}</p><div class="flex flex-wrap gap-1 mt-1">${categoryTags}</div></div></div>`;
+
+            // Normalise address fields — order uses shippingAddress.mobile (not deliveryAddress.phone)
+            const customerName   = order.userName || order.shippingAddress?.userName || 'N/A';
+            const customerPhone  = order.userPhone || order.shippingAddress?.mobile || order.deliveryAddress?.phone || order.deliveryAddress?.mobile || 'N/A';
+            const addrParts      = order.shippingAddress
+                ? [order.shippingAddress.village, order.shippingAddress.union, order.shippingAddress.thana, order.shippingAddress.district].filter(Boolean)
+                : [order.deliveryAddress?.address, order.deliveryAddress?.thana, order.deliveryAddress?.district].filter(Boolean);
+            const customerAddr   = addrParts.join(', ') || 'N/A';
+            const mapQueryAddr   = addrParts.join(', ') || '';
+            const mapDistrict    = order.shippingAddress?.district || order.deliveryAddress?.district || '';
+
             // Safe handling of createdAt - support multiple formats
             let createdAtFormatted = 'N/A';
             try {
@@ -1052,23 +1439,55 @@
                 allOptions.unshift(order.status);
             }
 
-            const statusDropdown = isDelivered 
+            // Admin-set statuses shown as read-only info badge
+            const adminStatuses = ['pending', 'confirmed', 'processing', 'shipped'];
+            const isAdminStatus = adminStatuses.includes(order.status);
+            const adminStatusColors = {
+                pending:    'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300',
+                confirmed:  'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
+                processing: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300',
+                shipped:    'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300',
+            };
+            const adminBadge = isAdminStatus
+                ? `<span class="px-2 py-1 rounded-full text-xs font-bold ${adminStatusColors[order.status] || 'bg-gray-100 text-gray-700'}">${text}</span>`
+                : '';
+
+            const statusDropdown = isDelivered
                 ? `<p class="font-semibold text-green-600 dark:text-green-400 flex items-center gap-1.5 text-xs sm:text-sm whitespace-nowrap"><i data-lucide="check-circle-2" class="w-4 h-4"></i><span>${text}</span></p>`
-                : `<div class="relative w-full">
-                    <button type="button" class="status-button w-full text-xs sm:text-sm border rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer flex items-center justify-between gap-2" data-id="${order.id}">
-                        <span class="flex-1 text-left">${text}</span>
-                        <i data-lucide="chevron-down" class="w-4 h-4 flex-shrink-0 transition-transform"></i>
-                    </button>
-                    <div class="status-dropdown-menu hidden absolute top-full left-0 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-50 overflow-hidden" data-id="${order.id}">
-                        ${selectableOptions.map(s => {
-                            const displayName = s.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                            const isSelected = s === order.status;
-                            return `<button type="button" class="status-option w-full text-left px-3 py-2 text-xs sm:text-sm hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-800 dark:text-white transition-colors ${isSelected ? 'bg-blue-50 dark:bg-blue-900/30 font-semibold' : ''}" data-status="${s}" data-order-id="${order.id}">
-                                ${isSelected ? '<i data-lucide="check" class="w-3 h-3 inline mr-1"></i>' : ''}${displayName}
-                            </button>`;
-                        }).join('')}
-                    </div>
-                </div>`;
+                : isAdminStatus
+                    ? `<div class="flex items-center gap-2">
+                        ${adminBadge}
+                        <div class="relative">
+                            <button type="button" class="status-button text-xs border rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer flex items-center gap-1" data-id="${order.id}">
+                                <i data-lucide="truck" class="w-3.5 h-3.5 text-blue-500"></i>
+                                <span>Update</span>
+                                <i data-lucide="chevron-down" class="w-3.5 h-3.5 flex-shrink-0 transition-transform"></i>
+                            </button>
+                            <div class="status-dropdown-menu hidden absolute top-full left-0 min-w-[160px] mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-50 overflow-hidden" data-id="${order.id}">
+                                ${selectableOptions.map(s => {
+                                    const displayName = s.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                                    return `<button type="button" class="status-option w-full text-left px-3 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-800 dark:text-white transition-colors" data-status="${s}" data-order-id="${order.id}">
+                                        ${displayName}
+                                    </button>`;
+                                }).join('')}
+                            </div>
+                        </div>
+                       </div>`
+                    : `<div class="relative w-full">
+                        <button type="button" class="status-button w-full text-xs sm:text-sm border rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer flex items-center justify-between gap-2" data-id="${order.id}">
+                            <span class="flex-1 text-left">${text}</span>
+                            <i data-lucide="chevron-down" class="w-4 h-4 flex-shrink-0 transition-transform"></i>
+                        </button>
+                        <div class="status-dropdown-menu hidden absolute top-full left-0 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-50 overflow-hidden" data-id="${order.id}">
+                            ${selectableOptions.map(s => {
+                                const displayName = s.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                                const isSelected = s === order.status;
+                                return `<button type="button" class="status-option w-full text-left px-3 py-2 text-xs sm:text-sm hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-800 dark:text-white transition-colors ${isSelected ? 'bg-blue-50 dark:bg-blue-900/30 font-semibold' : ''}" data-status="${s}" data-order-id="${order.id}">
+                                    ${isSelected ? '<i data-lucide="check" class="w-3 h-3 inline mr-1"></i>' : ''}${displayName}
+                                </button>`;
+                            }).join('')}
+                        </div>
+                    </div>`;
 
 
             
@@ -1102,11 +1521,19 @@
                      </div>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-3 text-sm text-gray-700 dark:text-gray-300">
-                    <div class="flex items-start gap-2"> <i data-lucide="user-round" class="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0"></i> <div class="min-w-0 flex-1"> <p class="font-semibold text-gray-800 dark:text-gray-200 text-xs">Customer</p> <p class="truncate">${order.userName || 'N/A'}</p> <div class="flex items-center gap-2 mt-1"> <p class="text-gray-600 dark:text-gray-400 text-xs">${order.deliveryAddress?.phone || 'N/A'}</p> ${order.deliveryAddress?.phone ? `<a href="tel:${order.deliveryAddress.phone}" class="flex items-center justify-center text-green-600 hover:text-green-700 h-6 w-6 rounded-full bg-green-100 hover:bg-green-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-green-400 transition-colors duration-200 transform active:scale-90" title="Call Customer"> <i data-lucide="phone" class="w-3.5 h-3.5"></i> <span class="sr-only">Call Customer</span> </a>` : ''} </div> </div> </div>
-                    <div class="flex items-start gap-2"> <i data-lucide="map-pin" class="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0"></i> <div class="min-w-0 flex-1"> <p class="font-semibold text-gray-800 dark:text-gray-200 text-xs">Address</p> <p class="break-words text-xs leading-relaxed">${order.deliveryAddress?.address || 'N/A'}${order.deliveryAddress?.district ? ', ' + order.deliveryAddress.district : ''}${order.deliveryAddress?.thana ? ', ' + order.deliveryAddress.thana : ''}</p> ${order.deliveryAddress?.address ? `<a href="#" onclick="showMapWithRoute('${order.id}', '${order.deliveryAddress?.address || ''}', '${order.deliveryAddress?.district || ''}'); return false;" class="text-blue-500 hover:underline text-xs flex items-center gap-1 mt-1">View on Map <i data-lucide="external-link" class="w-3 h-3"></i></a>` : ''} </div> </div>
-                    <div class="flex items-start gap-2"> <i data-lucide="shopping-basket" class="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0"></i> <div class="min-w-0 flex-1"> <p class="font-semibold text-gray-800 dark:text-gray-200 text-xs">Items</p> <ul class="list-disc list-inside space-y-0.5 mt-1 text-gray-600 dark:text-gray-400 text-xs">${itemsHtml}</ul> </div> </div>
+                    <div class="flex items-start gap-2"> <i data-lucide="user-round" class="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0"></i> <div class="min-w-0 flex-1"> <p class="font-semibold text-gray-800 dark:text-gray-200 text-xs">Customer</p> <p class="truncate">${customerName}</p> <div class="flex items-center gap-2 mt-1"> <p class="text-gray-600 dark:text-gray-400 text-xs">${customerPhone}</p> ${customerPhone !== 'N/A' ? `<a href="tel:${customerPhone}" class="flex items-center justify-center text-green-600 hover:text-green-700 h-6 w-6 rounded-full bg-green-100 hover:bg-green-200 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-green-400 transition-colors duration-200 transform active:scale-90" title="Call Customer"> <i data-lucide="phone" class="w-3.5 h-3.5"></i> </a><a href="https://wa.me/880${customerPhone.replace(/^0/, '').replace(/\D/g,'')}" target="_blank" rel="noopener" class="flex items-center justify-center h-6 w-6 rounded-full bg-green-500 hover:bg-green-600 transition-colors duration-200 transform active:scale-90" title="WhatsApp Customer"><svg viewBox="0 0 24 24" class="w-3.5 h-3.5 fill-white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></a>` : ''} </div> </div> </div>
+                    <div class="flex items-start gap-2"> <i data-lucide="map-pin" class="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0"></i> <div class="min-w-0 flex-1"> <p class="font-semibold text-gray-800 dark:text-gray-200 text-xs">Address</p> <p class="break-words text-xs leading-relaxed">${customerAddr}</p> ${mapQueryAddr ? `<button data-map-order="${order.id}" data-map-addr="${mapQueryAddr.replace(/"/g,'&quot;')}" data-map-district="${mapDistrict.replace(/"/g,'&quot;')}" class="map-btn text-blue-500 hover:text-blue-700 text-xs flex items-center gap-1 mt-1 font-medium"><i data-lucide="map" class="w-3 h-3"></i> View on Map</button>` : ''} </div> </div>
+                    ${packageSummaryHtml}
                     ${paymentHtml}
                     ${timeDetailsHtml}
+                </div>
+                <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 flex justify-end">
+                    <button data-msg-order="${order.id}" data-msg-customer="${customerName.replace(/"/g,'&quot;')}"
+                        class="msg-btn flex items-center gap-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                        <span>Message Customer</span>
+                        <span class="msg-unread-badge hidden ml-1 bg-red-500 text-white text-[9px] font-bold min-w-[16px] h-4 rounded-full flex items-center justify-center px-1" id="unread-${order.id}"></span>
+                    </button>
                 </div>
             </div>`;
         }
@@ -1114,6 +1541,23 @@
         function createHistoryCard(order, serialNumber) {
             const itemsHtml = order.items?.map(item => `<li class="truncate">${item.name} (x${item.quantity})</li>`).join('') || '';
             
+            // Package summary
+            const totalQty = order.items?.reduce((s, i) => s + (i.quantity || 1), 0) || 0;
+            const categories = [...new Set((order.items || []).map(i => i.category || i.type || '').filter(Boolean))];
+            const categoryTags = categories.length
+                ? categories.map(c => `<span class="inline-block bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 text-xs font-medium px-2 py-0.5 rounded-full">${c}</span>`).join(' ')
+                : `<span class="inline-block bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-medium px-2 py-0.5 rounded-full">General</span>`;
+            const packageSummaryHtml = `<div class="flex items-start gap-2"><i data-lucide="package-2" class="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0"></i><div><p class="font-semibold text-gray-800 dark:text-gray-200 text-xs">Package</p><p class="text-xs text-gray-600 dark:text-gray-400 mt-0.5">${totalQty} item${totalQty !== 1 ? 's' : ''}</p><div class="flex flex-wrap gap-1 mt-1">${categoryTags}</div></div></div>`;
+
+            // Normalise address fields
+            const customerName  = order.userName || order.shippingAddress?.userName || 'N/A';
+            const addrParts     = order.shippingAddress
+                ? [order.shippingAddress.village, order.shippingAddress.union, order.shippingAddress.thana, order.shippingAddress.district].filter(Boolean)
+                : [order.deliveryAddress?.address, order.deliveryAddress?.thana, order.deliveryAddress?.district].filter(Boolean);
+            const customerAddr  = addrParts.join(', ') || 'N/A';
+            const mapQueryAddr  = addrParts.join(', ') || '';
+            const mapDistrict   = order.shippingAddress?.district || order.deliveryAddress?.district || '';
+
             // Safe timestamp handling
             const safeFormatTime = (timestamp) => {
                 try {
@@ -1148,9 +1592,9 @@
                      </span>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-3 text-sm text-gray-700 dark:text-gray-300">
-                    <div class="flex items-start gap-2"> <i data-lucide="user-round" class="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0"></i> <div class="min-w-0 flex-1"> <p class="font-semibold text-gray-800 dark:text-gray-200 text-xs">Customer</p> <p class="truncate">${order.userName || 'N/A'}</p></div> </div>
-                    <div class="flex items-start gap-2"> <i data-lucide="map-pin" class="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0"></i> <div class="min-w-0 flex-1"> <p class="font-semibold text-gray-800 dark:text-gray-200 text-xs">Address</p> <p class="break-words text-xs leading-relaxed">${order.deliveryAddress?.address || 'N/A'}${order.deliveryAddress?.district ? ', ' + order.deliveryAddress.district : ''}${order.deliveryAddress?.thana ? ', ' + order.deliveryAddress.thana : ''}</p> ${order.deliveryAddress?.address ? `<a href="#" onclick="showMapWithRoute('${order.id}', '${order.deliveryAddress?.address || ''}', '${order.deliveryAddress?.district || ''}'); return false;" class="text-blue-500 hover:underline text-xs flex items-center gap-1 mt-1">View on Map <i data-lucide="external-link" class="w-3 h-3"></i></a>` : ''} </div> </div>
-                    <div class="flex items-start gap-2"> <i data-lucide="shopping-basket" class="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0"></i> <div class="min-w-0 flex-1"> <p class="font-semibold text-gray-800 dark:text-gray-200 text-xs">Items</p> <ul class="list-disc list-inside space-y-0.5 mt-1 text-gray-600 dark:text-gray-400 text-xs">${itemsHtml}</ul> </div> </div>
+                    <div class="flex items-start gap-2"> <i data-lucide="user-round" class="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0"></i> <div class="min-w-0 flex-1"> <p class="font-semibold text-gray-800 dark:text-gray-200 text-xs">Customer</p> <p class="truncate">${customerName}</p></div> </div>
+                    <div class="flex items-start gap-2"> <i data-lucide="map-pin" class="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0"></i> <div class="min-w-0 flex-1"> <p class="font-semibold text-gray-800 dark:text-gray-200 text-xs">Address</p> <p class="break-words text-xs leading-relaxed">${customerAddr}</p> ${mapQueryAddr ? `<button data-map-order="${order.id}" data-map-addr="${mapQueryAddr.replace(/"/g,'&quot;')}" data-map-district="${mapDistrict.replace(/"/g,'&quot;')}" class="map-btn text-blue-500 hover:text-blue-700 text-xs flex items-center gap-1 mt-1 font-medium"><i data-lucide="map" class="w-3 h-3"></i> View on Map</button>` : ''} </div> </div>
+                    ${packageSummaryHtml}
                     ${ typeof order.totalDeliveryDurationMinutes === 'number' ? `
                     <div class="flex items-start gap-2"> <i data-lucide="timer" class="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0"></i> <div> <p class="font-semibold text-gray-800 dark:text-gray-200 text-xs">Time Taken</p> <p class="text-xs">${order.totalDeliveryDurationMinutes} minutes</p> </div> </div>
                     ` : ''}
@@ -1163,34 +1607,7 @@
 
         // --- Business Logic ---
         function calculateDailyStats(orders) {
-            const selectedDateStr = ui.collectionDate.value;
-            if (!selectedDateStr) {
-                ui.totalCollection.textContent = '৳0';
-                ui.totalDeliveries.textContent = '0';
-                return;
-            }
-            
-            const startOfDay = new Date(selectedDateStr + 'T00:00:00');
-            const endOfDay = new Date(startOfDay);
-            endOfDay.setDate(startOfDay.getDate() + 1);
-            
-            let totalCollection = 0;
-            let totalDeliveries = 0;
-
-            orders.forEach(order => {
-                if (order.deliveredAt && order.status === 'delivered') {
-                    const deliveredDate = order.deliveredAt.toDate();
-                    if (deliveredDate >= startOfDay && deliveredDate < endOfDay) {
-                        totalDeliveries++;
-                        if (order.paymentMethod?.toLowerCase() === 'cash on delivery') {
-                            totalCollection += (order.totalAmount || 0);
-                        }
-                    }
-                }
-            });
-
-            ui.totalCollection.textContent = `৳${totalCollection.toFixed(0)}`;
-            ui.totalDeliveries.textContent = totalDeliveries;
+            // Stats now live in Profile modal → updateProfileStats()
         }
 
         function startLiveTimers() {
@@ -1212,74 +1629,22 @@
         }
 
         // --- Event Listeners & Actions ---
-        ui.currentOrdersTab.addEventListener('click', async () => {
-            // Stop camera if running
-            await stopCameraScanner();
-            
-            ui.currentOrdersTab.classList.add('tab-active');
-            ui.currentOrdersTab.classList.remove('text-gray-600', 'dark:text-gray-300');
-            ui.scanQrTab.classList.remove('tab-active');
-            ui.scanQrTab.classList.add('text-gray-600', 'dark:text-gray-300');
-            ui.historyTab.classList.remove('tab-active');
-            ui.historyTab.classList.add('text-gray-600', 'dark:text-gray-300');
-            ui.orderList.classList.remove('hidden');
-            ui.qrScannerSection.classList.add('hidden');
-            ui.historyList.classList.add('hidden');
-            ui.viewTitle.textContent = "Current Orders";
-        });
-
-        ui.scanQrTab.addEventListener('click', async () => {
-            ui.scanQrTab.classList.add('tab-active');
-            ui.scanQrTab.classList.remove('text-gray-600', 'dark:text-gray-300');
-            ui.currentOrdersTab.classList.remove('tab-active');
-            ui.currentOrdersTab.classList.add('text-gray-600', 'dark:text-gray-300');
-            ui.historyTab.classList.remove('tab-active');
-            ui.historyTab.classList.add('text-gray-600', 'dark:text-gray-300');
-            ui.qrScannerSection.classList.remove('hidden');
-            ui.orderList.classList.add('hidden');
-            ui.historyList.classList.add('hidden');
-            ui.viewTitle.textContent = "Scan QR Code";
-            
-            // Initialize camera scanner view (default)
-            ui.cameraTabBtn?.click();
-        });
-
-        ui.historyTab.addEventListener('click', async () => {
-            // Stop camera if running
-            await stopCameraScanner();
-            
-            ui.historyTab.classList.add('tab-active');
-            ui.historyTab.classList.remove('text-gray-600', 'dark:text-gray-300');
-            ui.currentOrdersTab.classList.remove('tab-active');
-            ui.currentOrdersTab.classList.add('text-gray-600', 'dark:text-gray-300');
-            ui.scanQrTab.classList.remove('tab-active');
-            ui.scanQrTab.classList.add('text-gray-600', 'dark:text-gray-300');
-            ui.historyList.classList.remove('hidden');
-            ui.qrScannerSection.classList.add('hidden');
-            ui.orderList.classList.add('hidden');
-            ui.viewTitle.textContent = "Delivery History";
-        });
+        // Tab buttons removed from dashboard — now only in Profile modal
+        ui.currentOrdersTab.addEventListener('click', () => {});
+        ui.scanQrTab.addEventListener('click', () => {});
+        ui.historyTab.addEventListener('click', () => {});
 
         ui.refreshButton.addEventListener('click', () => {
             const icon = ui.refreshButton.querySelector('svg');
-            if (icon) {
-                icon.classList.add('animate-spin');
-            }
+            if (icon) icon.classList.add('animate-spin');
             ui.refreshButton.disabled = true;
 
-            // Reset to default view (Current Orders)
-            if (ui.historyList.classList.contains('hidden')) {
-                 ui.currentOrdersTab.click();
-            }
-           
             renderAllViews(state.allOrders);
             calculateDailyStats(state.allOrders);
 
             setTimeout(() => {
                 const currentIcon = ui.refreshButton.querySelector('svg');
-                if (currentIcon) {
-                    currentIcon.classList.remove('animate-spin');
-                }
+                if (currentIcon) currentIcon.classList.remove('animate-spin');
                 ui.refreshButton.disabled = false;
                 showToast("View refreshed!");
             }, 700);
@@ -1444,9 +1809,12 @@
 
             ui.newOrderDetails.innerHTML = `
                 <p><strong>Order ID:</strong> #${order.orderId || order.id.slice(-8).toUpperCase()}</p>
-                <p><strong>Customer:</strong> ${order.userName || 'N/A'}</p>
-                <p><strong>Phone:</strong> ${order.deliveryAddress?.phone || 'N/A'}</p>
-                <p><strong>Address:</strong> ${order.deliveryAddress?.address || 'N/A'}${order.deliveryAddress?.district ? ', ' + order.deliveryAddress.district : ''}${order.deliveryAddress?.thana ? ', ' + order.deliveryAddress.thana : ''}</p>
+                <p><strong>Customer:</strong> ${order.userName || order.shippingAddress?.userName || 'N/A'}</p>
+                <p><strong>Phone:</strong> ${order.userPhone || order.shippingAddress?.mobile || order.deliveryAddress?.phone || order.deliveryAddress?.mobile || 'N/A'}</p>
+                <p><strong>Address:</strong> ${
+                    [order.shippingAddress?.village, order.shippingAddress?.union, order.shippingAddress?.thana, order.shippingAddress?.district].filter(Boolean).join(', ') ||
+                    order.deliveryAddress?.address || 'N/A'
+                }</p>
                 <p><strong>Total:</strong> ৳${order.amountDetails?.total || order.totalAmount || 0}</p>
             `;
             showModal(ui.newOrderModal);
@@ -1476,35 +1844,728 @@
         });
 
         // --- Profile Modal Logic ---
-        function showProfileModal() {
+        let profileStatsFlatpickr = null;
+
+        function showProfileModal(openTab) {
             if (!auth.currentUser || !state.currentUserData) return;
 
+            const data = state.currentUserData;
             const deliveredOrders = state.allOrders.filter(o => o.status === 'delivered');
             const totalDelivered = deliveredOrders.length;
-            const totalCod = deliveredOrders.reduce((sum, order) => (order.paymentMethod?.toLowerCase() === 'cash on delivery') ? sum + (order.totalAmount || 0) : sum, 0);
-            
-            ui.profileName.textContent = state.currentUserData.name || 'Delivery Staff';
-            ui.profileEmail.textContent = auth.currentUser.email;
-            ui.profilePhone.textContent = state.currentUserData.phone || 'N/A';
-            ui.profileVehicle.textContent = state.currentUserData.vehicle || 'N/A';
-            
-            if (state.currentUserData.accountStatus === 'active') {
-                ui.profileStatus.textContent = 'Active';
-                ui.profileStatus.className = 'px-2 py-1 text-xs font-bold text-green-800 bg-green-200 dark:text-green-200 dark:bg-green-800 rounded-full';
+            const totalCod = deliveredOrders.reduce((sum, o) =>
+                (o.paymentMethod?.toLowerCase() === 'cash on delivery') ? sum + (o.totalAmount || 0) : sum, 0);
+
+            // ── Basic info ──
+            const displayName = data.name || data.fullName || auth.currentUser?.displayName || auth.currentUser?.email?.split('@')[0] || 'Delivery Staff';
+            ui.profileName.textContent = displayName;
+            ui.profileEmail.textContent = auth.currentUser.email || '';
+
+            const phone = data.phone || data.phoneNumber || '';
+            ui.profilePhone.textContent = phone || 'N/A';
+            if (phone) {
+                ui.profileCallBtn.href = `tel:${phone}`;
+                ui.profileCallBtn.classList.remove('hidden');
+                ui.profileCallBtn.classList.add('flex');
             } else {
-                ui.profileStatus.textContent = 'Inactive';
-                ui.profileStatus.className = 'px-2 py-1 text-xs font-bold text-red-800 bg-red-200 dark:text-red-200 dark:bg-red-800 rounded-full';
+                ui.profileCallBtn.classList.add('hidden');
+                ui.profileCallBtn.classList.remove('flex');
             }
 
+            ui.profileVehicle.textContent = data.vehicle || data.vehicleType || 'N/A';
+
+            // Status badge (shared badge visible in header area)
+            const isActive = (data.accountStatus || 'active') === 'active';
+            ui.profileStatus.textContent = isActive ? '● Active' : '● Inactive';
+            ui.profileStatus.className = isActive
+                ? 'inline-flex items-center gap-1 mt-1 px-2.5 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400'
+                : 'inline-flex items-center gap-1 mt-1 px-2.5 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400';
+
+            // Account status row in overview
+            if (ui.profileAccountStatusRow) {
+                ui.profileAccountStatusRow.textContent = isActive ? 'Active' : 'Inactive';
+                ui.profileAccountStatusRow.className = isActive
+                    ? 'font-semibold text-sm text-green-600 dark:text-green-400'
+                    : 'font-semibold text-sm text-red-600 dark:text-red-400';
+            }
+
+            // Online indicator dot
+            if (ui.profileOnlineDot) {
+                ui.profileOnlineDot.className = state.isOnline
+                    ? 'absolute bottom-1 right-1 w-4 h-4 rounded-full bg-green-400 border-2 border-white dark:border-gray-900'
+                    : 'absolute bottom-1 right-1 w-4 h-4 rounded-full bg-gray-400 border-2 border-white dark:border-gray-900';
+            }
+
+            // ── Profile photo ──
+            const photoUrl = data.photoURL || data.profilePhoto || data.profileImage || '';
+            if (photoUrl && ui.profilePhotoImg) {
+                ui.profilePhotoImg.src = photoUrl;
+                ui.profilePhotoImg.classList.remove('hidden');
+                ui.profilePhotoFallback?.classList.add('hidden');
+                ui.profilePhotoImg.onerror = () => {
+                    ui.profilePhotoImg.classList.add('hidden');
+                    ui.profilePhotoFallback?.classList.remove('hidden');
+                };
+            } else {
+                ui.profilePhotoImg?.classList.add('hidden');
+                ui.profilePhotoFallback?.classList.remove('hidden');
+            }
+            // ── Update bottom nav profile avatar ──
+            const navImg = document.getElementById('mainnav-profile-img');
+            const navIcon = document.querySelector('#mainnav-profile-avatar i');
+            if (navImg && photoUrl) {
+                navImg.src = photoUrl;
+                navImg.classList.remove('hidden');
+                if (navIcon) navIcon.classList.add('hidden');
+            }
+
+            // ── Overview stats ──
             ui.profileTotalOrders.textContent = totalDelivered;
             ui.profileTotalCod.textContent = `৳${totalCod.toFixed(0)}`;
 
+            // ── Stats tab: init date picker ──
+            if (!profileStatsFlatpickr && ui.profileStatsDate) {
+                profileStatsFlatpickr = flatpickr(ui.profileStatsDate, {
+                    dateFormat: 'Y-m-d',
+                    defaultDate: 'today',
+                    altInput: true,
+                    altFormat: 'd-m-Y',
+                    onChange: () => updateProfileStats(),
+                });
+            }
+            updateProfileStats();
+
+            // ── History tab ──
+            renderProfileHistory(deliveredOrders);
+
+            // Open requested tab
+            switchProfileTab(openTab || 'overview');
+
             showModal(ui.profileModal);
+            lucide.createIcons();
         }
 
-        ui.profileButton.addEventListener('click', showProfileModal);
-        ui.closeProfileModalBtn.addEventListener('click', () => hideModal(ui.profileModal));
-        ui.profileModal.querySelector('.modal-backdrop').addEventListener('click', () => hideModal(ui.profileModal));
+        function updateProfileStats() {
+            const dateStr = profileStatsFlatpickr?.selectedDates[0]
+                ? profileStatsFlatpickr.input.value   // "Y-m-d"
+                : (ui.collectionDate.value || new Date().toISOString().slice(0, 10));
+
+            if (!dateStr) return;
+            const [y, m, d] = dateStr.split('-').map(Number);
+            const start = new Date(y, m - 1, d, 0, 0, 0);
+            const end   = new Date(y, m - 1, d, 23, 59, 59);
+
+            let deliveries = 0, cod = 0;
+            state.allOrders.forEach(o => {
+                if (o.status === 'delivered' && o.deliveredAt) {
+                    const dt = o.deliveredAt.toDate ? o.deliveredAt.toDate() : new Date(o.deliveredAt);
+                    if (dt >= start && dt <= end) {
+                        deliveries++;
+                        if (o.paymentMethod?.toLowerCase() === 'cash on delivery') cod += (o.totalAmount || 0);
+                    }
+                }
+            });
+
+            const pending = state.allOrders.filter(o => o.status !== 'delivered' && o.status !== 'out-for-delivery').length;
+            const ofd     = state.allOrders.filter(o => o.status === 'out-for-delivery').length;
+
+            if (ui.profileStatsDeliveries) ui.profileStatsDeliveries.textContent = deliveries;
+            if (ui.profileStatsCod)        ui.profileStatsCod.textContent = `৳${cod.toFixed(0)}`;
+            if (ui.profileStatsPending)    ui.profileStatsPending.textContent = pending;
+            if (ui.profileStatsOfd)        ui.profileStatsOfd.textContent = ofd;
+        }
+
+        function renderProfileHistory(deliveredOrders) {
+            if (!ui.profileHistoryList) return;
+            const sorted = [...deliveredOrders].sort((a, b) =>
+                (b.deliveredAt?.toMillis?.() || 0) - (a.deliveredAt?.toMillis?.() || 0));
+
+            if (ui.profileHistoryCount) ui.profileHistoryCount.textContent = sorted.length;
+
+            if (sorted.length === 0) {
+                ui.profileHistoryList.innerHTML = `
+                    <div class="text-center py-8 text-gray-400 dark:text-gray-500">
+                        <i data-lucide="history" class="w-10 h-10 mx-auto mb-2 opacity-40"></i>
+                        <p class="text-sm">No delivery history yet.</p>
+                    </div>`;
+                return;
+            }
+
+            const safeTime = (ts) => {
+                try {
+                    if (!ts) return '—';
+                    const d = ts.toDate ? ts.toDate() : new Date(ts);
+                    return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+                } catch { return '—'; }
+            };
+
+            ui.profileHistoryList.innerHTML = sorted.slice(0, 30).map((o, i) => {
+                const name = o.userName || o.shippingAddress?.userName || 'N/A';
+                const cod  = o.paymentMethod?.toLowerCase() === 'cash on delivery'
+                    ? `<span class="text-green-600 dark:text-green-400 font-semibold">৳${o.totalAmount || 0}</span>`
+                    : `<span class="text-gray-400 text-xs">Online</span>`;
+                return `
+                <div class="flex items-center gap-3 bg-gray-50 dark:bg-gray-800 rounded-xl px-3 py-2.5">
+                    <span class="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400 text-xs font-bold flex items-center justify-center flex-shrink-0">${i + 1}</span>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-semibold text-gray-800 dark:text-white truncate">#${o.orderId || o.id?.slice(-8).toUpperCase()}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 truncate">${name} · ${safeTime(o.deliveredAt)}</p>
+                    </div>
+                    <div class="flex-shrink-0 text-xs">${cod}</div>
+                </div>`;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        // Profile tab switcher
+        function switchProfileTab(tab) {
+            const tabs = {
+                overview: { btn: ui.ptabOverview,  content: ui.ptabOverviewContent },
+                stats:    { btn: ui.ptabStats,     content: ui.ptabStatsContent },
+                history:  { btn: ui.ptabHistory,   content: ui.ptabHistoryContent },
+                location: { btn: ui.ptabLocation,  content: ui.ptabLocationContent },
+                qr:       { btn: ui.ptabQr,        content: ui.ptabQrContent },
+            };
+            Object.entries(tabs).forEach(([key, { btn, content }]) => {
+                if (!btn || !content) return;
+                if (key === tab) {
+                    btn.classList.add('profile-tab-active');
+                    btn.classList.remove('text-gray-400', 'dark:text-gray-500');
+                    content.classList.remove('hidden');
+                } else {
+                    btn.classList.remove('profile-tab-active');
+                    btn.classList.add('text-gray-400', 'dark:text-gray-500');
+                    content.classList.add('hidden');
+                }
+            });
+        }
+
+        // Profile tab button listeners
+        ui.ptabOverview?.addEventListener('click', () => switchProfileTab('overview'));
+        ui.ptabStats?.addEventListener('click', () => { switchProfileTab('stats'); updateProfileStats(); });
+        ui.ptabHistory?.addEventListener('click', () => {
+            switchProfileTab('history');
+            renderProfileHistory(state.allOrders.filter(o => o.status === 'delivered'));
+        });
+        ui.ptabLocation?.addEventListener('click', () => {
+            switchProfileTab('location');
+            showProfileLocation();
+        });
+        ui.ptabQr?.addEventListener('click', () => switchProfileTab('qr'));
+
+        // Location refresh button
+        ui.profileLocationRefreshBtn?.addEventListener('click', () => showProfileLocation());
+
+        // ── My Location tab logic ──
+        let profileLocationMap = null;
+        let profileLocationMarker = null;
+
+        function showProfileLocation() {
+            if (!ui.profileLocationStatus || !ui.profileLocationMap) return;
+
+            // Show loading
+            ui.profileLocationStatus.style.display = 'flex';
+            ui.profileLocationStatusText.textContent = 'Getting your location…';
+            if (ui.profileLocationCoords) ui.profileLocationCoords.classList.add('hidden');
+            ui.profileOpenGmapsBtn.style.display = 'none';
+
+            if (!navigator.geolocation) {
+                ui.profileLocationStatusText.textContent = 'Geolocation is not supported by your browser.';
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+
+                    // Hide loading, show coords
+                    ui.profileLocationStatus.style.display = 'none';
+                    if (ui.profileLocationCoords) {
+                        ui.profileLocationCoords.classList.remove('hidden');
+                        ui.profileLatVal.textContent = lat.toFixed(6);
+                        ui.profileLngVal.textContent = lng.toFixed(6);
+                    }
+
+                    // Google Maps link
+                    ui.profileOpenGmapsBtn.href = `https://www.google.com/maps?q=${lat},${lng}`;
+                    ui.profileOpenGmapsBtn.style.display = 'flex';
+
+                    // Wait for DOM paint, then init/update map
+                    requestAnimationFrame(() => {
+                        setTimeout(() => {
+                            try {
+                                if (!profileLocationMap) {
+                                    profileLocationMap = L.map('profile-location-map', {
+                                        zoomControl: true,
+                                        attributionControl: true
+                                    }).setView([lat, lng], 16);
+                                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                                        attribution: '© OpenStreetMap',
+                                        maxZoom: 19
+                                    }).addTo(profileLocationMap);
+                                    profileLocationMarker = L.marker([lat, lng])
+                                        .addTo(profileLocationMap)
+                                        .bindPopup('<b>📍 You are here</b>')
+                                        .openPopup();
+                                } else {
+                                    profileLocationMap.setView([lat, lng], 16);
+                                    profileLocationMarker.setLatLng([lat, lng]).openPopup();
+                                }
+                                profileLocationMap.invalidateSize();
+                            } catch(e) {
+                                console.error('Map error:', e);
+                            }
+                        }, 200);
+                    });
+                },
+                (err) => {
+                    ui.profileLocationStatus.style.display = 'flex';
+                    ui.profileLocationStatusText.textContent = `❌ ${err.message}`;
+                },
+                { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+            );
+        }
+
+        // Profile QR inner tabs
+        ui.profileCameraTab?.addEventListener('click', () => {
+            ui.profileCameraTab.classList.add('profile-qr-tab-active', 'bg-blue-600', 'text-white');
+            ui.profileCameraTab.classList.remove('text-gray-500', 'dark:text-gray-400');
+            ui.profileManualTab.classList.remove('bg-blue-600', 'text-white');
+            ui.profileManualTab.classList.add('text-gray-500', 'dark:text-gray-400');
+            ui.profileQrCameraView.classList.remove('hidden');
+            ui.profileQrManualView.classList.add('hidden');
+        });
+        ui.profileManualTab?.addEventListener('click', () => {
+            ui.profileManualTab.classList.add('bg-blue-600', 'text-white');
+            ui.profileManualTab.classList.remove('text-gray-500', 'dark:text-gray-400');
+            ui.profileCameraTab.classList.remove('bg-blue-600', 'text-white');
+            ui.profileCameraTab.classList.add('text-gray-500', 'dark:text-gray-400');
+            ui.profileQrManualView.classList.remove('hidden');
+            ui.profileQrCameraView.classList.add('hidden');
+            stopProfileCameraScanner();
+        });
+
+        // Profile QR – Start camera
+        ui.profileStartScanBtn?.addEventListener('click', () => {
+            if (state.isScannerRunningProfile) return;
+            if (!state.html5QrCodeProfile) {
+                state.html5QrCodeProfile = new Html5Qrcode('profile-qr-reader');
+            }
+            state.html5QrCodeProfile.start(
+                { facingMode: 'environment' },
+                { fps: 10, qrbox: { width: 220, height: 220 } },
+                (decodedText) => {
+                    stopProfileCameraScanner();
+                    handleProfileQrResult(decodedText.trim());
+                },
+                () => {}
+            ).then(() => {
+                state.isScannerRunningProfile = true;
+                ui.profileStartScanBtn.classList.add('hidden');
+                ui.profileStopScanBtn.style.display = 'flex';
+            }).catch(err => {
+                showToast('Camera error: ' + err, 'error');
+            });
+        });
+
+        ui.profileStopScanBtn?.addEventListener('click', stopProfileCameraScanner);
+
+        async function stopProfileCameraScanner() {
+            if (state.html5QrCodeProfile && state.isScannerRunningProfile) {
+                try { await state.html5QrCodeProfile.stop(); } catch(e) {}
+                state.isScannerRunningProfile = false;
+            }
+            if (ui.profileStartScanBtn) ui.profileStartScanBtn.classList.remove('hidden');
+            if (ui.profileStopScanBtn) ui.profileStopScanBtn.style.display = 'none';
+        }
+
+        // Profile QR – Manual confirm
+        ui.profileQrConfirmBtn?.addEventListener('click', () => {
+            const val = ui.profileQrInput?.value.trim();
+            if (!val) { showToast('Please enter an Order ID.', 'warning'); return; }
+            handleProfileQrResult(val);
+        });
+        ui.profileQrInput?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') ui.profileQrConfirmBtn?.click();
+        });
+
+        async function handleProfileQrResult(scannedId) {
+            if (!ui.profileQrResult) return;
+            ui.profileQrResult.classList.remove('hidden');
+            ui.profileQrResult.innerHTML = `<div class="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                <i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Looking up order…</div>`;
+            lucide.createIcons();
+
+            // Find matching order
+            const order = state.allOrders.find(o =>
+                (o.orderId && o.orderId.toLowerCase() === scannedId.toLowerCase()) ||
+                (o.id && o.id.toLowerCase() === scannedId.toLowerCase())
+            );
+
+            if (!order) {
+                ui.profileQrResult.innerHTML = `<div class="flex items-center gap-2 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-200 dark:border-red-800">
+                    <i data-lucide="x-circle" class="w-4 h-4"></i> No matching order found for: <strong>${scannedId}</strong></div>`;
+                lucide.createIcons();
+                return;
+            }
+
+            if (order.status === 'delivered') {
+                ui.profileQrResult.innerHTML = `<div class="flex items-center gap-2 text-sm text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20 p-3 rounded-lg border border-green-200 dark:border-green-800">
+                    <i data-lucide="check-circle-2" class="w-4 h-4"></i> Order #${order.orderId || order.id?.slice(-8).toUpperCase()} is already delivered.</div>`;
+                lucide.createIcons();
+                return;
+            }
+
+            // Trigger full delivery confirmation flow
+            hideModal(ui.profileModal);
+            await stopProfileCameraScanner();
+            setTimeout(() => {
+                showDeliveryConfirmationModal(order.id);
+            }, 300);
+        }
+
+        ui.profileButton?.addEventListener('click', showProfileModal);
+        ui.closeProfileModalBtn.addEventListener('click', async () => {
+            await stopProfileCameraScanner();
+            hideModal(ui.profileModal);
+        });
+        ui.profileModal.querySelector('.modal-backdrop').addEventListener('click', async () => {
+            await stopProfileCameraScanner();
+            hideModal(ui.profileModal);
+        });
+
+        // ──────────────────────────────────────────
+        // MAIN BOTTOM NAV — always visible navigation
+        // ──────────────────────────────────────────
+        let mainLocationMap = null;
+        let mainLocationMarker = null;
+        let html5QrCodeMain = null;
+        let isScannerRunningMain = false;
+
+        const mainNavItems = {
+            orders:   { btn: () => ui.mainnavOrders,   view: () => ui.mainOrdersView,   title: 'Current Orders' },
+            scan:     { btn: () => ui.mainnavScan,     view: () => ui.mainScanView,     title: 'Scan QR Code' },
+            location: { btn: () => ui.mainnavLocation, view: () => ui.mainLocationView, title: 'My Location' },
+            history:  { btn: () => ui.mainnavHistory,  view: () => ui.mainHistoryView,  title: 'Delivery History' },
+            profile:  { btn: () => ui.mainnavProfile,  view: null,                      title: '' },
+        };
+
+        function switchMainNav(tab) {
+            if (tab === 'profile') {
+                showProfileModal();
+                return;
+            }
+            // First: update nav button states & show/hide views
+            Object.entries(mainNavItems).forEach(([key, item]) => {
+                if (!item.btn()) return;
+                const isActive = key === tab;
+                if (isActive) {
+                    item.btn().classList.add('main-nav-active');
+                    item.btn().classList.remove('text-gray-400', 'dark:text-gray-500');
+                } else {
+                    item.btn().classList.remove('main-nav-active');
+                    item.btn().classList.add('text-gray-400', 'dark:text-gray-500');
+                }
+                if (item.view && item.view()) {
+                    if (isActive) {
+                        item.view().classList.remove('hidden');
+                    } else {
+                        item.view().classList.add('hidden');
+                    }
+                }
+            });
+            // Update header title
+            if (ui.viewTitle && mainNavItems[tab]?.title) {
+                ui.viewTitle.textContent = mainNavItems[tab].title;
+            }
+            // Show/hide refresh button only on orders view
+            if (ui.refreshButton) {
+                ui.refreshButton.style.display = tab === 'orders' ? '' : 'none';
+            }
+            // Side effects AFTER views are visible in DOM
+            if (tab === 'location') {
+                // Double rAF + delay ensures the view is fully painted before Leaflet measures the container
+                requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => showMainLocation(), 150)));
+            } else if (tab === 'history') {
+                renderMainHistory(state.allOrders.filter(o => o.status === 'delivered'));
+            } else if (tab !== 'orders' && tab !== 'scan') {
+                stopMainCameraScanner();
+            }
+        }
+
+        // Main Location
+        function showMainLocation() {
+            const statusEl   = ui.mainLocationStatus;
+            const statusText = ui.mainLocationStatusText;
+            const coordsEl   = ui.mainLocationCoords;
+            const gmapsBtn   = ui.mainOpenGmapsBtn;
+            const mapEl      = ui.mainLocationMap;
+
+            if (!mapEl) return;
+
+            statusEl.style.display = 'flex';
+            statusText.textContent = 'Getting your location…';
+            coordsEl.classList.add('hidden');
+            gmapsBtn.style.display = 'none';
+
+            if (!navigator.geolocation) {
+                statusText.textContent = '❌ Geolocation is not supported by your browser.';
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+                    const acc = pos.coords.accuracy ? Math.round(pos.coords.accuracy) : null;
+
+                    // Persist to state
+                    if (!state.lastLocation) state.lastLocation = {};
+                    state.lastLocation.latitude  = lat;
+                    state.lastLocation.longitude = lng;
+
+                    statusEl.style.display = 'none';
+                    coordsEl.classList.remove('hidden');
+                    if (ui.mainLatVal) ui.mainLatVal.textContent = lat.toFixed(6);
+                    if (ui.mainLngVal) ui.mainLngVal.textContent = lng.toFixed(6);
+
+                    gmapsBtn.href = `https://www.google.com/maps?q=${lat},${lng}`;
+                    gmapsBtn.style.display = 'flex';
+
+                    requestAnimationFrame(() => {
+                        setTimeout(() => {
+                            try {
+                                const myLocIcon = L.divIcon({
+                                    className: '',
+                                    html: `<div style="position:relative;width:44px;height:44px;">
+                                        <div style="position:absolute;inset:0;border-radius:50%;background:rgba(37,99,235,.15);animation:mapPulse 2s infinite;"></div>
+                                        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:22px;height:22px;background:#2563eb;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 10px rgba(37,99,235,.55);"></div>
+                                    </div>`,
+                                    iconSize: [44, 44], iconAnchor: [22, 22], popupAnchor: [0, -24]
+                                });
+
+                                const popupHtml = `
+                                    <div style="font-family:sans-serif;min-width:170px">
+                                        <p style="font-weight:700;font-size:13px;color:#1d4ed8;margin-bottom:6px">📍 Your Current Location</p>
+                                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px">
+                                            <div style="background:#eff6ff;border-radius:6px;padding:5px 7px">
+                                                <p style="color:#6b7280;font-weight:600;text-transform:uppercase;font-size:9px;margin-bottom:2px">Latitude</p>
+                                                <p style="color:#1e40af;font-weight:700;font-family:monospace">${lat.toFixed(5)}</p>
+                                            </div>
+                                            <div style="background:#eff6ff;border-radius:6px;padding:5px 7px">
+                                                <p style="color:#6b7280;font-weight:600;text-transform:uppercase;font-size:9px;margin-bottom:2px">Longitude</p>
+                                                <p style="color:#1e40af;font-weight:700;font-family:monospace">${lng.toFixed(5)}</p>
+                                            </div>
+                                        </div>
+                                        ${acc ? `<p style="font-size:10px;color:#9ca3af;margin-top:5px">Accuracy: ±${acc}m</p>` : ''}
+                                    </div>`;
+
+                                if (!mainLocationMap) {
+                                    mainLocationMap = L.map('main-location-map', {
+                                        zoomControl: true,
+                                        attributionControl: true
+                                    }).setView([lat, lng], 16);
+                                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                                        attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>',
+                                        maxZoom: 19
+                                    }).addTo(mainLocationMap);
+                                    // Accuracy circle
+                                    if (acc && acc < 500) {
+                                        L.circle([lat, lng], {
+                                            radius: acc, color: '#2563eb',
+                                            fillColor: '#3b82f6', fillOpacity: 0.08,
+                                            weight: 1.5, dashArray: '4 4'
+                                        }).addTo(mainLocationMap);
+                                    }
+                                    mainLocationMarker = L.marker([lat, lng], { icon: myLocIcon })
+                                        .addTo(mainLocationMap)
+                                        .bindPopup(popupHtml, { maxWidth: 230 })
+                                        .openPopup();
+                                } else {
+                                    mainLocationMap.setView([lat, lng], 16);
+                                    if (mainLocationMarker) {
+                                        mainLocationMarker.setLatLng([lat, lng]).openPopup();
+                                    }
+                                }
+                                // invalidateSize twice — once now, once after tiles start loading
+                                mainLocationMap.invalidateSize();
+                                setTimeout(() => { if (mainLocationMap) mainLocationMap.invalidateSize(); }, 300);
+                            } catch(e) {
+                                console.error('Main location map error:', e);
+                                statusText.textContent = '❌ Map failed to load. Try again.';
+                                statusEl.style.display = 'flex';
+                            }
+                        }, 300);
+                    });
+                },
+                (err) => {
+                    statusEl.style.display = 'flex';
+                    let msg = err.message;
+                    if (err.code === 1) msg = 'Location permission denied. Please allow in browser settings.';
+                    else if (err.code === 2) msg = 'Location unavailable. Please try again.';
+                    else if (err.code === 3) msg = 'Location timed out. Please try again.';
+                    statusText.textContent = '❌ ' + msg;
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+            );
+        }
+
+        ui.mainLocationRefreshBtn?.addEventListener('click', () => {
+            // Destroy old map so it re-inits with correct container size
+            if (mainLocationMap) {
+                try { mainLocationMap.remove(); } catch(e) {}
+                mainLocationMap = null;
+                mainLocationMarker = null;
+            }
+            showMainLocation();
+        });
+
+        // Main History
+        function renderMainHistory(deliveredOrders) {
+            if (!ui.mainHistoryList) return;
+            const sorted = [...deliveredOrders].sort((a, b) =>
+                (b.deliveredAt?.toMillis?.() || 0) - (a.deliveredAt?.toMillis?.() || 0));
+
+            if (ui.mainHistoryCount) ui.mainHistoryCount.textContent = sorted.length;
+
+            if (sorted.length === 0) {
+                ui.mainHistoryList.innerHTML = `
+                    <div class="text-center py-10 text-gray-400 dark:text-gray-500">
+                        <i data-lucide="history" class="w-10 h-10 mx-auto mb-2 opacity-40"></i>
+                        <p class="text-sm">No delivery history yet.</p>
+                    </div>`;
+                lucide.createIcons();
+                return;
+            }
+
+            const safeTime = (ts) => {
+                try {
+                    if (!ts) return '—';
+                    const d = ts.toDate ? ts.toDate() : new Date(ts);
+                    return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+                } catch { return '—'; }
+            };
+
+            ui.mainHistoryList.innerHTML = sorted.slice(0, 50).map((o, i) => {
+                const name = o.userName || o.shippingAddress?.userName || 'N/A';
+                const cod  = o.paymentMethod?.toLowerCase() === 'cash on delivery'
+                    ? `<span class="text-green-600 dark:text-green-400 font-semibold">৳${o.totalAmount || 0}</span>`
+                    : `<span class="text-gray-400 text-xs">Online</span>`;
+                return `
+                <div class="flex items-center gap-3 bg-gray-50 dark:bg-gray-800 rounded-xl px-3 py-2.5">
+                    <span class="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400 text-xs font-bold flex items-center justify-center flex-shrink-0">${i + 1}</span>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-semibold text-gray-800 dark:text-white truncate">#${o.orderId || o.id?.slice(-8).toUpperCase()}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 truncate">${name} · ${safeTime(o.deliveredAt)}</p>
+                    </div>
+                    <div class="flex-shrink-0 text-xs">${cod}</div>
+                </div>`;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        // Main QR Scanner
+        async function stopMainCameraScanner() {
+            if (html5QrCodeMain && isScannerRunningMain) {
+                try { await html5QrCodeMain.stop(); } catch(e) {}
+                isScannerRunningMain = false;
+            }
+            if (ui.mainStartScanBtn) ui.mainStartScanBtn.style.display = 'flex';
+            if (ui.mainStopScanBtn) ui.mainStopScanBtn.style.display = 'none';
+        }
+
+        ui.mainCameraTab?.addEventListener('click', () => {
+            ui.mainCameraTab.classList.add('bg-blue-600', 'text-white');
+            ui.mainCameraTab.classList.remove('text-gray-500', 'dark:text-gray-400');
+            ui.mainManualTab.classList.remove('bg-blue-600', 'text-white');
+            ui.mainManualTab.classList.add('text-gray-500', 'dark:text-gray-400');
+            ui.mainQrCameraView.classList.remove('hidden');
+            ui.mainQrManualView.classList.add('hidden');
+        });
+        ui.mainManualTab?.addEventListener('click', () => {
+            ui.mainManualTab.classList.add('bg-blue-600', 'text-white');
+            ui.mainManualTab.classList.remove('text-gray-500', 'dark:text-gray-400');
+            ui.mainCameraTab.classList.remove('bg-blue-600', 'text-white');
+            ui.mainCameraTab.classList.add('text-gray-500', 'dark:text-gray-400');
+            ui.mainQrManualView.classList.remove('hidden');
+            ui.mainQrCameraView.classList.add('hidden');
+            stopMainCameraScanner();
+        });
+
+        ui.mainStartScanBtn?.addEventListener('click', () => {
+            if (isScannerRunningMain) return;
+            if (!html5QrCodeMain) {
+                html5QrCodeMain = new Html5Qrcode('main-qr-reader');
+            }
+            html5QrCodeMain.start(
+                { facingMode: 'environment' },
+                { fps: 10, qrbox: { width: 220, height: 220 } },
+                async (decodedText) => {
+                    await stopMainCameraScanner();
+                    handleMainQrResult(decodedText.trim());
+                },
+                () => {}
+            ).then(() => {
+                isScannerRunningMain = true;
+                ui.mainStartScanBtn.style.display = 'none';
+                ui.mainStopScanBtn.style.display = 'flex';
+            }).catch(err => {
+                showToast('Camera error: ' + err, 'error');
+            });
+        });
+
+        ui.mainStopScanBtn?.addEventListener('click', stopMainCameraScanner);
+
+        ui.mainQrConfirmBtn?.addEventListener('click', () => {
+            const val = ui.mainQrInput?.value.trim();
+            if (!val) { showToast('Please enter an Order ID.', 'warning'); return; }
+            handleMainQrResult(val);
+        });
+        ui.mainQrInput?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') ui.mainQrConfirmBtn?.click();
+        });
+
+        async function handleMainQrResult(scannedId) {
+            if (!ui.mainQrResult) return;
+            ui.mainQrResult.classList.remove('hidden');
+            ui.mainQrResult.innerHTML = `<div class="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl border border-blue-200 dark:border-blue-800">
+                <i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Looking up order…</div>`;
+            lucide.createIcons();
+
+            const order = state.allOrders.find(o =>
+                (o.orderId && o.orderId.toLowerCase() === scannedId.toLowerCase()) ||
+                (o.id && o.id.toLowerCase() === scannedId.toLowerCase())
+            );
+
+            if (!order) {
+                ui.mainQrResult.innerHTML = `<div class="flex items-center gap-2 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 p-3 rounded-xl border border-red-200 dark:border-red-800">
+                    <i data-lucide="x-circle" class="w-4 h-4"></i> No matching order found for: <strong>${scannedId}</strong></div>`;
+                lucide.createIcons();
+                return;
+            }
+
+            if (order.status === 'delivered') {
+                ui.mainQrResult.innerHTML = `<div class="flex items-center gap-2 text-sm text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20 p-3 rounded-xl border border-green-200 dark:border-green-800">
+                    <i data-lucide="check-circle-2" class="w-4 h-4"></i> Order #${order.orderId || order.id?.slice(-8).toUpperCase()} is already delivered.</div>`;
+                lucide.createIcons();
+                return;
+            }
+
+            ui.mainQrResult.innerHTML = '';
+            setTimeout(() => {
+                showDeliveryConfirmationModal(order.id);
+            }, 200);
+        }
+
+        // Bottom nav button event listeners
+        ui.mainnavOrders?.addEventListener('click', () => switchMainNav('orders'));
+        ui.mainnavScan?.addEventListener('click', () => switchMainNav('scan'));
+        ui.mainnavLocation?.addEventListener('click', () => switchMainNav('location'));
+        ui.mainnavHistory?.addEventListener('click', () => switchMainNav('history'));
+        ui.mainnavProfile?.addEventListener('click', () => switchMainNav('profile'));
+
+        // Stop main QR scanner when leaving scan tab
+        // (called inside switchMainNav already)
 
 
         // --- Utility Functions (Sound, Modals, Toast) ---
@@ -1596,6 +2657,422 @@
         // Make showMapWithRoute globally accessible for onclick handlers
         window.showMapWithRoute = showMapWithRoute;
 
+        // ── In-page Leaflet map modal ─────────────────────────────────────────
+        let leafletMapInstance  = null;
+        let myLocationMarker    = null;
+        let myLocationWatchId   = null;
+        let routeLine           = null;
+        let destLatLon          = null;
+
+        // Event delegation — handles map-btn clicks from dynamically rendered cards
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('.map-btn');
+            if (!btn) return;
+            e.preventDefault();
+            const orderId  = btn.dataset.mapOrder;
+            const addr     = btn.dataset.mapAddr;
+            const district = btn.dataset.mapDistrict;
+            openMapModal(orderId, addr, district);
+        });
+
+        // Custom marker icons
+        function makeDestIcon() {
+            return L.divIcon({
+                className: '',
+                html: `<div style="position:relative;width:32px;height:42px;">
+                    <svg viewBox="0 0 32 42" xmlns="http://www.w3.org/2000/svg" style="width:32px;height:42px;filter:drop-shadow(0 3px 6px rgba(0,0,0,.35))">
+                        <path d="M16 0C7.163 0 0 7.163 0 16c0 9.941 14.4 25.5 15.02 26.18a1.33 1.33 0 001.96 0C17.6 41.5 32 25.94 32 16 32 7.163 24.837 0 16 0z" fill="#ef4444"/>
+                        <circle cx="16" cy="16" r="8" fill="#fff"/>
+                        <text x="16" y="20" text-anchor="middle" font-size="11" font-family="sans-serif" font-weight="700" fill="#ef4444">📦</text>
+                    </svg>
+                </div>`,
+                iconSize: [32, 42], iconAnchor: [16, 42], popupAnchor: [0, -44]
+            });
+        }
+
+        function makeMyIcon() {
+            return L.divIcon({
+                className: '',
+                html: `<div style="position:relative;width:40px;height:40px;">
+                    <div style="position:absolute;inset:0;border-radius:50%;background:rgba(37,99,235,.18);animation:mapPulse 2s infinite;"></div>
+                    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:20px;height:20px;background:#2563eb;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(37,99,235,.5);"></div>
+                    <svg style="position:absolute;top:50%;left:50%;transform:translate(-50%,-115%);width:18px;height:18px;" viewBox="0 0 24 24" fill="#2563eb"><path d="M12 2a7 7 0 100 14A7 7 0 0012 2z"/><path d="M12 22a10 10 0 01-8-4" stroke="#2563eb" stroke-width="2" fill="none"/></svg>
+                </div>`,
+                iconSize: [40, 40], iconAnchor: [20, 20], popupAnchor: [0, -22]
+            });
+        }
+
+        // OSRM free routing — returns { distanceKm, durationMin, coords[] }
+        async function getOSRMRoute(fromLat, fromLon, toLat, toLon) {
+            try {
+                const url = `https://router.project-osrm.org/route/v1/driving/${fromLon},${fromLat};${toLon},${toLat}?overview=full&geometries=geojson&steps=false`;
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data.code === 'Ok' && data.routes?.length) {
+                    const route = data.routes[0];
+                    const coords = route.geometry.coordinates.map(([lon, lat]) => [lat, lon]);
+                    return {
+                        distanceKm: (route.distance / 1000).toFixed(1),
+                        durationMin: Math.round(route.duration / 60),
+                        coords
+                    };
+                }
+            } catch(e) { /* OSRM unavailable */ }
+            return null;
+        }
+
+        function formatETA(minutes) {
+            if (minutes < 1) return '< 1 min';
+            if (minutes < 60) return `${minutes} min`;
+            const h = Math.floor(minutes / 60);
+            const m = minutes % 60;
+            return m > 0 ? `${h}h ${m}m` : `${h}h`;
+        }
+
+        async function openMapModal(orderId, address, district) {
+            const modal      = document.getElementById('map-modal');
+            const addrEl     = document.getElementById('map-modal-address');
+            const destLabel  = document.getElementById('map-dest-label');
+            const routeInfo  = document.getElementById('map-route-info');
+            const loadingBar = document.getElementById('map-loading-bar');
+            const loadingTxt = document.getElementById('map-loading-text');
+
+            const fullAddr = district ? `${address}, ${district}, Bangladesh` : `${address}, Bangladesh`;
+            addrEl.textContent   = fullAddr;
+            if (destLabel) destLabel.textContent = fullAddr;
+
+            // Reset UI state
+            routeInfo.classList.add('hidden');
+            loadingBar.classList.remove('hidden');
+            loadingTxt.textContent = 'Finding delivery address…';
+
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+
+            // Destroy previous map instance
+            if (leafletMapInstance) { leafletMapInstance.remove(); leafletMapInstance = null; }
+            myLocationMarker = null; routeLine = null; destLatLon = null;
+
+            // Wait for the full-screen modal to be fully painted before Leaflet measures the container
+            await new Promise(r => setTimeout(r, 80));
+
+            leafletMapInstance = L.map('leaflet-map', {
+                zoomControl: true,
+                attributionControl: true
+            }).setView([23.8103, 90.4125], 10);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>',
+                maxZoom: 19
+            }).addTo(leafletMapInstance);
+
+            // ── STEP 1: Geocode destination ──────────────────────────────────
+            const geocodeAttempts = [
+                fullAddr,
+                district ? `${address.split(',').pop()?.trim()}, ${district}, Bangladesh` : null,
+                district ? `${district}, Bangladesh` : null,
+            ].filter(Boolean);
+
+            for (const q of geocodeAttempts) {
+                try {
+                    const res  = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&countrycodes=bd`, { headers: { 'Accept-Language': 'en' } });
+                    const data = await res.json();
+                    if (data.length) {
+                        destLatLon = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+                        break;
+                    }
+                } catch(e) { /* try next */ }
+            }
+
+            if (destLatLon) {
+                // Red delivery pin
+                L.marker(destLatLon, { icon: makeDestIcon(), zIndexOffset: 500 })
+                    .addTo(leafletMapInstance)
+                    .bindPopup(`
+                        <div style="min-width:180px;font-family:sans-serif">
+                            <p style="font-weight:700;font-size:13px;color:#111827;margin-bottom:4px">📦 Delivery Address</p>
+                            <p style="font-size:11px;color:#6b7280;line-height:1.4">${address}</p>
+                            ${district ? `<p style="font-size:11px;color:#3b82f6;font-weight:600;margin-top:2px">${district}</p>` : ''}
+                        </div>
+                    `, { maxWidth: 220 })
+                    .openPopup();
+                leafletMapInstance.setView(destLatLon, 14);
+            } else {
+                loadingTxt.textContent = 'Address not found — showing your location';
+            }
+
+            // ── STEP 2: Get delivery man GPS & draw route ────────────────────
+            async function drawRoute(myLat, myLon) {
+                if (!leafletMapInstance) return;
+
+                // Update/create blue dot
+                if (myLocationMarker) {
+                    myLocationMarker.setLatLng([myLat, myLon]);
+                } else {
+                    myLocationMarker = L.marker([myLat, myLon], { icon: makeMyIcon(), zIndexOffset: 1000 })
+                        .addTo(leafletMapInstance)
+                        .bindPopup(`<div style="font-family:sans-serif;font-weight:700;font-size:12px;color:#1d4ed8">📍 Your Location</div>`);
+                }
+
+                if (!destLatLon) {
+                    leafletMapInstance.setView([myLat, myLon], 14);
+                    loadingBar.classList.add('hidden');
+                    return;
+                }
+
+                // Try OSRM route
+                loadingTxt.textContent = 'Calculating road route…';
+                const route = await getOSRMRoute(myLat, myLon, destLatLon[0], destLatLon[1]);
+
+                // Remove old route line
+                if (routeLine) routeLine.remove();
+
+                if (route) {
+                    // Draw actual road route
+                    routeLine = L.polyline(route.coords, {
+                        color: '#2563eb', weight: 5, opacity: 0.85,
+                        lineJoin: 'round', lineCap: 'round'
+                    }).addTo(leafletMapInstance);
+
+                    // Add route casing (outline) for visibility
+                    L.polyline(route.coords, {
+                        color: '#fff', weight: 9, opacity: 0.4,
+                        lineJoin: 'round', lineCap: 'round'
+                    }).addTo(leafletMapInstance).bringToBack();
+
+                    // Update info bar
+                    document.getElementById('map-route-distance').textContent = `${route.distanceKm} km`;
+                    document.getElementById('map-route-eta').textContent      = formatETA(route.durationMin);
+                    document.getElementById('map-route-speed').textContent    = `~${Math.round(route.distanceKm / Math.max(route.durationMin / 60, 0.1))} km/h`;
+                    routeInfo.classList.remove('hidden');
+
+                    leafletMapInstance.fitBounds(routeLine.getBounds(), { padding: [55, 55] });
+                } else {
+                    // Fallback: straight dashed line
+                    routeLine = L.polyline([[myLat, myLon], destLatLon], {
+                        color: '#2563eb', dashArray: '10 14', weight: 3, opacity: 0.75
+                    }).addTo(leafletMapInstance);
+
+                    // Straight-line distance
+                    const R = 6371;
+                    const dLat = (destLatLon[0] - myLat) * Math.PI / 180;
+                    const dLon = (destLatLon[1] - myLon) * Math.PI / 180;
+                    const a = Math.sin(dLat/2)**2 + Math.cos(myLat*Math.PI/180)*Math.cos(destLatLon[0]*Math.PI/180)*Math.sin(dLon/2)**2;
+                    const distKm = (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))).toFixed(1);
+                    const etaMin = Math.round(distKm / 30 * 60); // assume 30km/h avg in BD
+
+                    document.getElementById('map-route-distance').textContent = `~${distKm} km`;
+                    document.getElementById('map-route-eta').textContent      = formatETA(etaMin);
+                    document.getElementById('map-route-speed').textContent    = 'Straight line';
+                    routeInfo.classList.remove('hidden');
+
+                    leafletMapInstance.fitBounds([[myLat, myLon], destLatLon], { padding: [55, 55] });
+                }
+
+                loadingBar.classList.add('hidden');
+
+                // Google Maps navigate button
+                document.getElementById('open-gmaps-btn').onclick = () => {
+                    window.open(`https://www.google.com/maps/dir/?api=1&origin=${myLat},${myLon}&destination=${encodeURIComponent(fullAddr)}&travelmode=driving`, '_blank');
+                };
+            }
+
+            // Recenter button
+            document.getElementById('map-recenter-btn').onclick = () => {
+                if (!leafletMapInstance) return;
+                try {
+                    if (routeLine && routeLine.getBounds().isValid()) {
+                        leafletMapInstance.fitBounds(routeLine.getBounds(), { padding: [55, 55] });
+                    } else if (destLatLon && myLocationMarker) {
+                        leafletMapInstance.fitBounds([myLocationMarker.getLatLng(), destLatLon], { padding: [55, 55] });
+                    } else if (destLatLon) {
+                        leafletMapInstance.setView(destLatLon, 14);
+                    } else if (myLocationMarker) {
+                        leafletMapInstance.setView(myLocationMarker.getLatLng(), 15);
+                    }
+                    leafletMapInstance.invalidateSize();
+                } catch(e) { console.warn('Recenter error:', e); }
+            };
+
+            // Navigate button default (before GPS fix — destination only)
+            document.getElementById('open-gmaps-btn').onclick = () => {
+                window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddr)}`, '_blank');
+            };
+            if (state.lastLocation?.latitude) {
+                await drawRoute(state.lastLocation.latitude, state.lastLocation.longitude);
+            } else {
+                // Try to get fresh GPS
+                if (!destLatLon) {
+                    loadingBar.classList.add('hidden');
+                } else {
+                    loadingTxt.textContent = 'Getting your location…';
+                }
+            }
+
+            // Watch live GPS updates
+            if (navigator.geolocation) {
+                if (myLocationWatchId !== null) navigator.geolocation.clearWatch(myLocationWatchId);
+                let firstFix = !state.lastLocation?.latitude;
+                myLocationWatchId = navigator.geolocation.watchPosition(
+                    async (pos) => {
+                        const { latitude: lat, longitude: lon } = pos.coords;
+                        if (!state.lastLocation) state.lastLocation = {};
+                        state.lastLocation.latitude  = lat;
+                        state.lastLocation.longitude = lon;
+                        if (firstFix) { firstFix = false; await drawRoute(lat, lon); }
+                        else if (myLocationMarker) { myLocationMarker.setLatLng([lat, lon]); }
+                    },
+                    () => { loadingBar.classList.add('hidden'); },
+                    { enableHighAccuracy: true, maximumAge: 4000 }
+                );
+            } else {
+                loadingBar.classList.add('hidden');
+            }
+
+            lucide.createIcons();
+            // Force Leaflet to recalculate map container size after all DOM updates
+            if (leafletMapInstance) {
+                setTimeout(() => { leafletMapInstance.invalidateSize(); }, 150);
+            }
+        }
+
+        function closeMapModal() {
+            document.getElementById('map-modal').style.display = 'none';
+            document.body.style.overflow = '';
+            if (myLocationWatchId !== null) {
+                navigator.geolocation.clearWatch(myLocationWatchId);
+                myLocationWatchId = null;
+            }
+            if (leafletMapInstance) { leafletMapInstance.remove(); leafletMapInstance = null; }
+            myLocationMarker = null; routeLine = null; destLatLon = null;
+            // Reset info bar
+            document.getElementById('map-route-info')?.classList.add('hidden');
+            document.getElementById('map-loading-bar')?.classList.remove('hidden');
+        }
+        document.getElementById('close-map-modal').addEventListener('click', closeMapModal);
+        document.getElementById('close-map-modal-2').addEventListener('click', closeMapModal);
+        document.getElementById('map-modal').addEventListener('click', function(e) {
+            if (e.target === this) closeMapModal();
+        });
+        // ─────────────────────────────────────────────────────────────────────
+
+        // ── Customer Message Modal (orderMessages subcollection) ─────────────
+        let cmsgOrderId        = null;
+        let cmsgUnsubscribe    = null;
+        let cmsgDeliveryName   = '';
+
+        // Event delegation for .msg-btn clicks in dynamically rendered cards
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('.msg-btn');
+            if (!btn) return;
+            e.preventDefault();
+            const orderId      = btn.dataset.msgOrder;
+            const customerName = btn.dataset.msgCustomer || 'Customer';
+            openCustomerMsgModal(orderId, customerName);
+        });
+
+        function openCustomerMsgModal(orderId, customerName) {
+            cmsgOrderId = orderId;
+            // Get delivery man's display name from auth
+            cmsgDeliveryName = auth.currentUser?.displayName || 'Delivery Partner';
+
+            document.getElementById('cmsg-customer-name').textContent = customerName;
+            document.getElementById('customer-msg-modal').style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+
+            // Unsubscribe previous listener if any
+            if (cmsgUnsubscribe) { cmsgUnsubscribe(); cmsgUnsubscribe = null; }
+
+            // Real-time listener for messages
+            const q = query(
+                collection(db, 'orderMessages', orderId, 'messages'),
+                orderBy('createdAt', 'asc')
+            );
+            cmsgUnsubscribe = onSnapshot(q, (snap) => {
+                const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderCmsgMessages(msgs);
+                // Update unread badge on the card
+                const deliveryUnread = msgs.filter(m => m.senderRole === 'user' && !m.readByDelivery).length;
+                const badge = document.getElementById(`unread-${orderId}`);
+                if (badge) {
+                    if (deliveryUnread > 0) {
+                        badge.textContent = deliveryUnread;
+                        badge.classList.remove('hidden');
+                    } else {
+                        badge.classList.add('hidden');
+                    }
+                }
+            }, () => {});
+        }
+
+        function renderCmsgMessages(msgs) {
+            const container = document.getElementById('cmsg-messages');
+            const empty     = document.getElementById('cmsg-empty');
+            if (msgs.length === 0) {
+                empty.classList.remove('hidden');
+                // Remove all message bubbles
+                container.querySelectorAll('.cmsg-bubble').forEach(el => el.remove());
+                return;
+            }
+            empty.classList.add('hidden');
+            // Re-render all messages
+            container.querySelectorAll('.cmsg-bubble').forEach(el => el.remove());
+            msgs.forEach(m => {
+                const isDelivery = m.senderRole === 'delivery';
+                const timeStr = m.createdAt?.toDate ? m.createdAt.toDate().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
+                const div = document.createElement('div');
+                div.className = `cmsg-bubble flex ${isDelivery ? 'justify-end' : 'justify-start'}`;
+                div.innerHTML = `
+                    <div class="max-w-[80%] rounded-2xl px-3 py-2 text-sm shadow-sm
+                        ${isDelivery ? 'bg-blue-600 text-white rounded-br-md' : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-600 rounded-bl-md'}">
+                        <p class="break-words">${m.text}</p>
+                        <p class="text-[10px] mt-0.5 text-right ${isDelivery ? 'text-blue-200' : 'text-gray-400 dark:text-gray-500'}">
+                            ${isDelivery ? '🚴 ' : '👤 '}${timeStr}
+                        </p>
+                    </div>`;
+                container.appendChild(div);
+            });
+            // Scroll to bottom
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function sendCustomerMessage() {
+            const input = document.getElementById('cmsg-input');
+            const text  = input.value.trim();
+            if (!text || !cmsgOrderId || !auth.currentUser) return;
+            input.value = '';
+            try {
+                await addDoc(collection(db, 'orderMessages', cmsgOrderId, 'messages'), {
+                    text,
+                    senderId:    auth.currentUser.uid,
+                    senderRole:  'delivery',
+                    senderName:  cmsgDeliveryName,
+                    createdAt:   serverTimestamp(),
+                    readByUser:  false,
+                    orderId:     cmsgOrderId,
+                });
+            } catch (err) {
+                showToast('Failed to send message', 'error');
+            }
+        }
+
+        function closeCustomerMsgModal() {
+            document.getElementById('customer-msg-modal').style.display = 'none';
+            document.body.style.overflow = '';
+            if (cmsgUnsubscribe) { cmsgUnsubscribe(); cmsgUnsubscribe = null; }
+            cmsgOrderId = null;
+        }
+
+        document.getElementById('close-customer-msg-modal').addEventListener('click', closeCustomerMsgModal);
+        document.getElementById('customer-msg-modal').addEventListener('click', function(e) {
+            if (e.target === this) closeCustomerMsgModal();
+        });
+        document.getElementById('cmsg-send-btn').addEventListener('click', sendCustomerMessage);
+        document.getElementById('cmsg-input').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendCustomerMessage(); }
+        });
+        // ─────────────────────────────────────────────────────────────────────
+
         function showToast(message, type = 'success') {
             const toast = document.getElementById('toast');
             const toastMessage = document.getElementById('toast-message');
@@ -1606,7 +3083,7 @@
                 warning: 'bg-yellow-500 text-black',
                 info: 'bg-blue-500'
             };
-            toast.className = `fixed bottom-5 right-5 text-white py-2.5 px-5 rounded-lg shadow-lg transition-all duration-300 ${colorClasses[type] || 'bg-green-500'} z-50`;
+            toast.className = `fixed top-16 right-4 text-white py-2.5 px-4 rounded-xl shadow-xl transition-all duration-300 max-w-[280px] text-sm font-medium z-[100] ${colorClasses[type] || 'bg-green-500'}`;
             toast.classList.remove('toast-enter', 'toast-exit-active');
             toast.classList.add('toast-enter-active');
             setTimeout(() => {
@@ -1830,16 +3307,22 @@
 
                 const completeDelivery = async (photoURL = null) => {
                     try {
-                        // Update order status to delivered (only allowed fields)
+                        // Update order status to delivered with all delivery info in main document
                         const updateData = {
                             status: 'delivered',
-                            deliveredAt: serverTimestamp()
+                            deliveredAt: serverTimestamp(),
+                            scannedByQRCode: true,
+                            deliveryConfirmedAt: new Date().toISOString()
                         };
+                        
+                        // Add photo URL if available
+                        if (photoURL) {
+                            updateData.deliveryPhotoURL = photoURL;
+                        }
                         
                         await updateDoc(orderRef, updateData);
 
-                        // Store additional delivery details in a separate subcollection (optional)
-                        // This avoids permission issues while keeping extra data
+                        // Also store in subcollection as backup (optional)
                         try {
                             const deliveryDetailsRef = doc(db, 'orders', orderId, 'deliveryDetails', 'confirmation');
                             await setDoc(deliveryDetailsRef, {
@@ -2381,9 +3864,13 @@
         
         function getStatusInfo(status) {
             switch (status) {
-                case 'out-for-delivery': return { color: 'border-orange-500', text: 'Out for Delivery', bg: 'bg-orange-50 dark:bg-orange-900/20' };
-                case 'delivered': return { color: 'border-green-500', text: 'Delivered', bg: 'bg-green-50 dark:bg-green-900/20' };
-                default: return { color: 'border-blue-500', text: 'Processing', bg: 'bg-blue-50 dark:bg-blue-900/20' };
+                case 'pending':          return { color: 'border-yellow-400',  text: 'Pending',          bg: 'bg-yellow-50 dark:bg-yellow-900/20' };
+                case 'confirmed':        return { color: 'border-blue-500',    text: 'Confirmed',        bg: 'bg-blue-50 dark:bg-blue-900/20' };
+                case 'processing':       return { color: 'border-indigo-500',  text: 'Processing',       bg: 'bg-indigo-50 dark:bg-indigo-900/20' };
+                case 'shipped':          return { color: 'border-purple-500',  text: 'Shipped',          bg: 'bg-purple-50 dark:bg-purple-900/20' };
+                case 'out-for-delivery': return { color: 'border-orange-500',  text: 'Out for Delivery', bg: 'bg-orange-50 dark:bg-orange-900/20' };
+                case 'delivered':        return { color: 'border-green-500',   text: 'Delivered',        bg: 'bg-green-50 dark:bg-green-900/20' };
+                default:                 return { color: 'border-gray-400',    text: status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown', bg: 'bg-gray-50 dark:bg-gray-900/20' };
             }
         }
 
