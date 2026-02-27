@@ -3010,29 +3010,40 @@
             const empty     = document.getElementById('cmsg-empty');
             if (msgs.length === 0) {
                 empty.classList.remove('hidden');
-                // Remove all message bubbles
                 container.querySelectorAll('.cmsg-bubble').forEach(el => el.remove());
                 return;
             }
             empty.classList.add('hidden');
-            // Re-render all messages
             container.querySelectorAll('.cmsg-bubble').forEach(el => el.remove());
             msgs.forEach(m => {
                 const isDelivery = m.senderRole === 'delivery';
-                const timeStr = m.createdAt?.toDate ? m.createdAt.toDate().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
-                const div = document.createElement('div');
-                div.className = `cmsg-bubble flex ${isDelivery ? 'justify-end' : 'justify-start'}`;
+                const isAdmin    = m.senderRole === 'admin';
+                const isUser     = m.senderRole === 'user';
+                const timeStr    = m.createdAt?.toDate ? m.createdAt.toDate().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
+                const div        = document.createElement('div');
+                div.className    = `cmsg-bubble flex ${isDelivery ? 'justify-end' : 'justify-start'}`;
+
+                let bubbleClass, labelEmoji;
+                if (isDelivery) {
+                    bubbleClass = 'bg-blue-600 text-white rounded-br-md';
+                    labelEmoji  = '🚴 ';
+                } else if (isAdmin) {
+                    bubbleClass = 'bg-purple-100 dark:bg-purple-900/40 text-purple-900 dark:text-purple-100 border border-purple-200 dark:border-purple-700 rounded-bl-md';
+                    labelEmoji  = '🔔 Admin · ';
+                } else {
+                    bubbleClass = 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-600 rounded-bl-md';
+                    labelEmoji  = '👤 ';
+                }
+
                 div.innerHTML = `
-                    <div class="max-w-[80%] rounded-2xl px-3 py-2 text-sm shadow-sm
-                        ${isDelivery ? 'bg-blue-600 text-white rounded-br-md' : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-600 rounded-bl-md'}">
+                    <div class="max-w-[80%] rounded-2xl px-3 py-2 text-sm shadow-sm ${bubbleClass}">
                         <p class="break-words">${m.text}</p>
-                        <p class="text-[10px] mt-0.5 text-right ${isDelivery ? 'text-blue-200' : 'text-gray-400 dark:text-gray-500'}">
-                            ${isDelivery ? '🚴 ' : '👤 '}${timeStr}
+                        <p class="text-[10px] mt-0.5 text-right ${isDelivery ? 'text-blue-200' : isAdmin ? 'text-purple-500 dark:text-purple-400' : 'text-gray-400 dark:text-gray-500'}">
+                            ${labelEmoji}${timeStr}
                         </p>
                     </div>`;
                 container.appendChild(div);
             });
-            // Scroll to bottom
             container.scrollTop = container.scrollHeight;
         }
 
@@ -3049,6 +3060,7 @@
                     senderName:  cmsgDeliveryName,
                     createdAt:   serverTimestamp(),
                     readByUser:  false,
+                    readByAdmin: false,
                     orderId:     cmsgOrderId,
                 });
             } catch (err) {
